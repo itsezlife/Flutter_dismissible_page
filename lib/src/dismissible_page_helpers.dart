@@ -1,17 +1,9 @@
 part of 'dismissible_page.dart';
 
-class _DismissiblePageScrollBehavior extends ScrollBehavior {
-  const _DismissiblePageScrollBehavior();
-
-  @override
-  Widget buildOverscrollIndicator(_, Widget child, __) => child;
-}
-
 mixin _DismissiblePageMixin {
   late final AnimationController _moveController;
   int _activePointerCount = 0;
 
-  // ignore: prefer_final_fields
   bool _dragUnderway = false;
 
   bool get _isActive => _dragUnderway || _moveController.isAnimating;
@@ -26,8 +18,7 @@ class _DismissiblePageListener extends StatelessWidget {
     required this.direction,
     required this.child,
     this.onPointerDown,
-    Key? key,
-  }) : super(key: key);
+  });
 
   final _DismissiblePageMixin parentState;
   final ValueChanged<Offset> onStart;
@@ -57,7 +48,7 @@ class _DismissiblePageListener extends StatelessWidget {
   }
 
   bool _isSameDirections(ScrollMetrics metrics) {
-    final Axis axis = metrics.axis;
+    final axis = metrics.axis;
     switch (direction) {
       case DismissiblePageDismissDirection.vertical:
         return axis == Axis.vertical;

@@ -1,3 +1,9 @@
+## 1.1.0
+- BREAKING: Introduces custom ScrollController with ScrollPosition to delegate `applyUserOffset` to updating the dimissible page offset/extent, based on various conditions and gesutes, which fixed all sort of issues when having scrollable content inside the dimissible page. Now you MUST pass the `scrollController` from the `builder` to your scrollable widgets, otherwise it wouldn't work.
+- BREAKING: Introduces new `interactionMode` that supports `scroll` and `gesture` modes. Note: multi-axis dimsissible page with scrollable content inside work perfectly AND, if `interactionMode` is `scroll`, then combines both `scroll` and `gesture` mode, because otherwise scrollable widget alone can't deliver multi-axis updates, whereas `scrollController` prevent the scrollable content from scrolling when the dragging/dismissing is happening. But there still can be bugs with multi-axis with scrollable content inside, it is generally not recommended to use multi-axis with scrollable inside.
+- Now in the scrollable widget inside dismissible page the dimsissing would not go from up to down when started dragging, so that when reversing the direction, let's say was dragging down, then drag up, when the offset goes to it's initial value(0) it starts scrolling the list and not continues dragging.
+- Fixes issues: [Issue #1](https://github.com/Tkko/Flutter_dismissible_page/issues/14), [Issue #2](https://github.com/Tkko/Flutter_dismissible_page/issues/36)
+
 ## 1.0.3
 - Fixed unexpected behavior of dismissing the page when user is scrolling the opposite direction [Issue](https://github.com/Tkko/Flutter_dismissible_page/issues/14#issuecomment-1599097053)
 

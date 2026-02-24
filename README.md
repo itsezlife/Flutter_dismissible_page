@@ -87,15 +87,19 @@ class SecondPage extends StatelessWidget {
       onDismissed: () {
         Navigator.of(context).pop();
       },
+      interactionMode: DismissiblePageInteractionMode.scroll,
       // Note that scrollable widget inside DismissiblePage might limit the functionality
       // If scroll direction matches DismissiblePage direction
       direction: DismissiblePageDismissDirection.multi,
       isFullScreen: false,
-      child: Hero(
-        tag: 'Unique tag',
-        child: Image.network(
-          imageUrl,
-          fit: BoxFit.cover,
+      builder: (_, scrollController) => SingleChildScrollView(
+        controller: scrollController,
+        child: Hero(
+          tag: 'Unique tag',
+          child: Image.network(
+            imageUrl,
+            fit: BoxFit.cover,
+          ),
         ),
       ),
     );
@@ -107,8 +111,9 @@ class SecondPage extends StatelessWidget {
 
 ``` dart
   const DismissiblePage({
-    required this.child,
+    required this.builder,
     required this.onDismissed,
+    required this.interactionMode,
     this.onDragStart,
     this.onDragEnd,
     this.onDragUpdate,
@@ -131,6 +136,9 @@ class SecondPage extends StatelessWidget {
 
   /// Called when the widget has been dismissed.
   final VoidCallback onDismissed;
+
+  /// Controls scroll-aware dismissal behavior.
+  final DismissiblePageInteractionMode interactionMode;
 
   /// Called when the user starts dragging the widget.
   final VoidCallback? onDragStart;
@@ -162,8 +170,8 @@ class SecondPage extends StatelessWidget {
   /// If true the widget will ignore gestures
   final bool disabled;
 
-  /// Widget that should be dismissed
-  final Widget child;
+  /// Builder that receives a [ScrollController] for scroll-aware mode.
+  final DismissiblePageBuilder builder;
 
   /// Background color of [DismissiblePage]
   final Color backgroundColor;

@@ -41,9 +41,13 @@ This fork focuses on fixing long-standing scroll + dismiss gesture conflicts in
 
 ### Behavior Comparison
 
-| Old behavior (problematic) | New behavior (expected) |
-|--|--|
-| https://user-images.githubusercontent.com/26390946/194924545-1712b63b-2a25-4182-b731-db49ecc50c23.mov | https://github.com/user-attachments/assets/73c025b8-c500-4973-8254-d875a5fa7444 |
+Old behavior (problematic):
+
+https://user-images.githubusercontent.com/26390946/194924545-1712b63b-2a25-4182-b731-db49ecc50c23.mov
+
+New behavior (expected):
+
+https://github.com/user-attachments/assets/73c025b8-c500-4973-8254-d875a5fa7444
 
 ## Features:
 

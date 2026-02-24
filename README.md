@@ -47,7 +47,7 @@ https://user-images.githubusercontent.com/26390946/194924545-1712b63b-2a25-4182-
 
 New behavior (expected):
 
-https://github.com/user-attachments/assets/73c025b8-c500-4973-8254-d875a5fa7444
+https://github.com/user-attachments/assets/9ef89285-7d6a-45f9-87aa-d589d8d89c5e
 
 ## Features:
 

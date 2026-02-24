@@ -264,6 +264,7 @@ class _MultiAxisDismissiblePageState extends State<MultiAxisDismissiblePage>
       widget.onDismissed();
     } else {
       unawaited(_moveController.animateTo(1));
+      widget.onDragEnd?.call();
     }
   }
 
@@ -354,8 +355,7 @@ class _MultiAxisDismissiblePageState extends State<MultiAxisDismissiblePage>
       return true;
     }
 
-    if (dragExtent != 0 &&
-        widget.interactionMode == DismissiblePageInteractionMode.gesture) {
+    if (dragExtent != 0) {
       return true;
     }
 
@@ -396,13 +396,13 @@ class _MultiAxisDismissiblePageState extends State<MultiAxisDismissiblePage>
     //   return content;
     // }
 
-    /// Explicitly handle both gesture and scroll modes, because otherwise 
+    /// Explicitly handle both gesture and scroll modes, because otherwise
     /// scroll can't target multi-axis.
-    /// 
+    ///
     /// So, in the multi-axis mode the [scrollController] is used to not scroll
     /// the scrollable widget inside the [builder], when the page is dragging.
-    /// 
-    /// Thought, Scroll controller still dispatches the updates to the offset 
+    ///
+    /// Thought, Scroll controller still dispatches the updates to the offset
     /// when is being scrolled normally.
     return _DismissiblePageListener(
       parentState: this,

@@ -5,6 +5,7 @@
 - Fixes issues: [Issue #1](https://github.com/Tkko/Flutter_dismissible_page/issues/14), [Issue #2](https://github.com/Tkko/Flutter_dismissible_page/issues/36)
 - FIX: In single-axis scroll mode, reversing drag direction now programmatically ends dismiss drag at origin for truly scrollable content, so the remaining delta is routed to inner scrolling instead of leaking into dismiss offset.
 - FIX: Removes tiny delta leakage to `_dragExtent` when users quickly reverse scroll direction during dismissal gesture handoff.
+- FIX: In single-axis `scroll` interaction mode, when content is smaller than the viewport (not actually scrollable), dismissal now falls back to gesture handling so empty areas still receive drag-to-dismiss interactions.
 - Improved: Keeps non-scrollable behavior unchanged (cross-over drag remains as expected for full-screen/non-scrollable pages).
 - FIX: In multi-axis `_shouldConsumeUserOffset` is true when `dragOffset` not equals to 0, regardless of the `ineractionMode`, previoisly was working only if the mode was `gesture`, which lead to various small visual bugs with scrollable. Note: this fix makes that until the dragging released it can be dismissed in all directions, to be more precise don't expect it to work as in single-mode when scrolling down, then up and it continue scrolling the list, instead of dragging the page up(at the bottom). So there are trade-offs, but it is generally a better choice I'd say, if you really want to have multi-axis dimissial with scrollable inside.
 

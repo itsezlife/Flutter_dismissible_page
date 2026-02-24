@@ -135,6 +135,8 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
   /// The text direction of the current context, used for RTL support.
   late final TextDirection _textDirection = Directionality.of(context);
 
+  bool _canInnerContentScroll = false;
+
   @override
   void initState() {
     super.initState();
@@ -153,6 +155,20 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
       ..addStatusListener(_handleDismissStatusChanged)
       ..addListener(_moveAnimationListener);
     _updateMoveAnimation();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkCanInnerContentScroll();
+    }, debugLabel: 'SingleAxisDismissiblePage.checkCanInnerContentScroll');
+  }
+
+  void _checkCanInnerContentScroll() {
+    if (!_scrollController.hasClients) return;
+
+    final oldCanInnerContentScroll = _canInnerContentScroll;
+    _canInnerContentScroll = _scrollController.position.maxScrollExtent > 0;
+
+    if (oldCanInnerContentScroll == _canInnerContentScroll) return;
+
+    setState(() {});
   }
 
   /// Animation listener that triggers drag update callbacks.
@@ -524,7 +540,8 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
       child: widget.builder(context, scrollController),
     );
 
-    if (widget.interactionMode == DismissiblePageInteractionMode.scroll) {
+    if (widget.interactionMode == DismissiblePageInteractionMode.scroll &&
+        _canInnerContentScroll) {
       return animatedChild;
     }
 

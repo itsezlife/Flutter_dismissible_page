@@ -118,6 +118,8 @@ class SingleAxisDismissiblePage extends StatefulWidget {
 
 class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
     with TickerProviderStateMixin, _DismissiblePageMixin {
+  static const double _kOriginEpsilon = 1e-6;
+
   /// Animation that controls the movement offset during drag gestures.
   late Animation<Offset> _moveAnimation;
 
@@ -334,6 +336,22 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
     double delta,
     ScrollPosition position,
   ) {
+    final hasScrollableContent =
+        (position.maxScrollExtent - position.minScrollExtent).abs() >
+        _kOriginEpsilon;
+    final isReturningToOrigin =
+        _dragExtent != 0 && _isDeltaReturningPageToOrigin(delta);
+    final reachesOrCrossesOrigin =
+        isReturningToOrigin &&
+        (delta.abs() + _kOriginEpsilon >= _dragExtent.abs());
+
+    if (hasScrollableContent && reachesOrCrossesOrigin) {
+      _dragExtent = 0;
+      _moveController.value = 0;
+      _updateMoveAnimation();
+      return;
+    }
+
     _applyDragDelta(delta);
   }
 

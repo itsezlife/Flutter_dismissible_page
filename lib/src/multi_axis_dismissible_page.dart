@@ -286,6 +286,9 @@ class _MultiAxisDismissiblePageState extends State<MultiAxisDismissiblePage>
       widget.onDismissed();
     } else {
       unawaited(_moveController.animateTo(1));
+      DismissiblePageDragNotification(
+        details: _dragNotifier.value,
+      ).dispatch(context);
       widget.onDragEnd?.call();
     }
   }

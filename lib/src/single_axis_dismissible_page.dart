@@ -361,6 +361,9 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
           ..reverseDuration =
               widget.reverseDuration * (1 / _moveController.value)
           ..reverse();
+        DismissiblePageDragNotification(
+          details: _details,
+        ).dispatch(context);
         widget.onDragEnd?.call();
       }
     }

@@ -12,6 +12,7 @@ class DismissiblePageDragUpdateDetails {
     this.offset = Offset.zero,
     this.overallDragValue = 0.0,
     this.scale = 1.0,
+    this.isDismissed = false,
   });
 
   /// The overall drag value representing the progress of the dismissal gesture.
@@ -45,6 +46,9 @@ class DismissiblePageDragUpdateDetails {
   /// as the user drags to dismiss.
   final Offset offset;
 
+  /// Whether the page is dismissed.
+  final bool isDismissed;
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -62,8 +66,29 @@ class DismissiblePageDragUpdateDetails {
         'opacity': opacity,
         'scale': scale,
         'offset': offset,
+        'isDismissed': isDismissed,
       };
 
   @override
   String toString() => toMap().toString();
+
+  /// Creates a copy of this [DismissiblePageDragUpdateDetails] with the given 
+  /// properties updated.
+  DismissiblePageDragUpdateDetails copyWith({
+    double? overallDragValue,
+    double? radius,
+    double? opacity,
+    double? scale,
+    Offset? offset,
+    bool? isDismissed,
+  }) {
+    return DismissiblePageDragUpdateDetails(
+      overallDragValue: overallDragValue ?? this.overallDragValue,
+      radius: radius ?? this.radius,
+      opacity: opacity ?? this.opacity,
+      scale: scale ?? this.scale,
+      offset: offset ?? this.offset,
+      isDismissed: isDismissed ?? this.isDismissed,
+    );
+  }
 }

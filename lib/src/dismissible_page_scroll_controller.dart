@@ -94,3 +94,28 @@ class _DismissiblePageScrollPosition extends ScrollPositionWithSingleContext {
     super.dispose();
   }
 }
+
+/// {@template dismissible_page_drag_notification}
+/// A [Notification] related to the drag of a [DismissiblePage], which
+/// will be dispatched to the [NotificationListener].
+/// {@endtemplate}
+class DismissiblePageDragNotification extends Notification
+    with ViewportNotificationMixin {
+  /// {@macro dismissible_page_drag_notification}
+  DismissiblePageDragNotification({
+    required this.details,
+  });
+
+  /// The details of the drag update.
+  final DismissiblePageDragUpdateDetails details;
+
+  @override
+  void debugFillDescription(List<String> description) {
+    super.debugFillDescription(description);
+    description.add(
+      'radius: ${details.radius}, opacity: ${details.opacity}, '
+      'offset: ${details.offset}, '
+      'overallDragValue: ${details.overallDragValue}, scale: ${details.scale}',
+    );
+  }
+}

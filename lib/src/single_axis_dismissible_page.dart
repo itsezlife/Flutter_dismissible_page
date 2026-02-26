@@ -48,6 +48,8 @@ class SingleAxisDismissiblePage extends StatefulWidget {
     required this.hitTestBehavior,
     required this.contentPadding,
     required this.interactionMode,
+    required this.enableBackgroundOpacity,
+    required this.minOpacity,
     super.key,
   });
 
@@ -85,7 +87,7 @@ class SingleAxisDismissiblePage extends StatefulWidget {
   final DismissiblePageBuilder builder;
 
   /// The background color of the dismissible page.
-  final Color backgroundColor;
+  final Color? backgroundColor;
 
   /// The direction in which the widget can be dismissed.
   final DismissiblePageDismissDirection direction;
@@ -110,6 +112,12 @@ class SingleAxisDismissiblePage extends StatefulWidget {
 
   /// Controls how drag-to-dismiss interaction is coordinated with scrollables.
   final DismissiblePageInteractionMode interactionMode;
+
+  /// Whether to enable background opacity animation.
+  final bool enableBackgroundOpacity;
+
+  /// The minimum opacity of the background when the page is displayed.
+  final double minOpacity;
 
   @override
   State<SingleAxisDismissiblePage> createState() =>
@@ -157,6 +165,7 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
     _updateMoveAnimation();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkCanInnerContentScroll();
+      DismissiblePageDragNotification(details: _details).dispatch(context);
     }, debugLabel: 'SingleAxisDismissiblePage.checkCanInnerContentScroll');
   }
 
@@ -171,22 +180,25 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
     setState(() {});
   }
 
+  DismissiblePageDragUpdateDetails get _details =>
+      DismissiblePageDragUpdateDetails(
+        overallDragValue: min(
+          _dragExtent / context.size!.height,
+          widget.maxTransformValue,
+        ),
+        radius: _radius,
+        opacity: _opacity,
+        offset: _offset,
+        scale: _scale ?? 0.0,
+      );
+
   /// Animation listener that triggers drag update callbacks.
   void _moveAnimationListener() {
-    if (widget.onDragUpdate != null) {
-      widget.onDragUpdate!.call(
-        DismissiblePageDragUpdateDetails(
-          overallDragValue: min(
-            _dragExtent / context.size!.height,
-            widget.maxTransformValue,
-          ),
-          radius: _radius,
-          opacity: _opacity,
-          offset: _offset,
-          scale: _scale ?? 0.0,
-        ),
-      );
+    if (widget.onDragUpdate case final onDragUpdate?) {
+      onDragUpdate.call(_details);
     }
+
+    DismissiblePageDragNotification(details: _details).dispatch(context);
   }
 
   @override
@@ -199,6 +211,11 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
       ..dispose();
     super.dispose();
   }
+
+  /// Returns true if the scroll delta can be converted to a drag delta.
+  bool get _canConvertScrollDeltaToDragDelta =>
+      widget.direction == DismissiblePageDismissDirection.vertical &&
+      widget.interactionMode == DismissiblePageInteractionMode.scroll;
 
   /// Returns true if the configured direction is along the X-axis.
   bool get _directionIsXAxis {
@@ -269,9 +286,13 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
   }
 
   /// Applies a drag delta to the current drag extent.
-  void _applyDragDelta(double delta) {
+  void _applyDragDelta(double delta, {bool isScrollDelta = false}) {
     if (!_isActive || _moveController.isAnimating) return;
     final oldDragExtent = _dragExtent;
+
+    if (isScrollDelta && !_canConvertScrollDeltaToDragDelta) {
+      return;
+    }
 
     switch (widget.direction) {
       case DismissiblePageDismissDirection.horizontal:
@@ -331,6 +352,7 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
     _dragUnderway = false;
     if (!_moveController.isDismissed) {
       if (_moveController.value > _dismissThreshold) {
+        DismissiblePageDragNotification(details: _details).dispatch(context);
         widget.onDismissed.call();
       } else {
         _moveController
@@ -368,7 +390,7 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
       return;
     }
 
-    _applyDragDelta(delta);
+    _applyDragDelta(delta, isScrollDelta: true);
   }
 
   /// Handles the end of a scroll-based drag operation.
@@ -462,6 +484,7 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
   /// Handles animation status changes for the dismiss animation.
   void _handleDismissStatusChanged(AnimationStatus status) {
     if (status == AnimationStatus.completed && !_dragUnderway) {
+      DismissiblePageDragNotification(details: _details).dispatch(context);
       widget.onDismissed();
     }
   }
@@ -506,7 +529,10 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
       lerpDouble(widget.minRadius, widget.maxRadius, _dragValue)!;
 
   /// The current opacity, calculated based on drag progress.
-  double get _opacity => (widget.startingOpacity - _dragValue).clamp(.0, 1.0);
+  double get _opacity => (widget.startingOpacity - _dragValue).clamp(
+    widget.minOpacity,
+    1.0,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -518,30 +544,41 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
     final animatedChild = AnimatedBuilder(
       animation: _moveAnimation,
       builder: (context, child) {
-        final backgroundColor = widget.backgroundColor == Colors.transparent
-            ? Colors.transparent
-            : widget.backgroundColor.withValues(alpha: _opacity);
+        final backgroundColor = switch ((
+          widget.backgroundColor,
+          widget.enableBackgroundOpacity,
+        )) {
+          (final color?, _) when color == Colors.transparent => color,
+          (final color?, true) => color.withValues(alpha: _opacity),
+          (final color, _) => color,
+        };
 
-        return Container(
-          padding: widget.contentPadding,
-          color: backgroundColor,
-          child: FractionalTranslation(
-            translation: _offset,
-            child: Transform.scale(
-              scale: _scale ?? 0.0,
-              child: ClipRRect(
-                borderRadius: BorderRadius.all(Radius.circular(_radius)),
-                child: child,
-              ),
+        Widget content = FractionalTranslation(
+          translation: _offset,
+          child: Transform.scale(
+            scale: _scale ?? 0,
+            child: ClipRRect(
+              borderRadius: BorderRadius.all(Radius.circular(_radius)),
+              child: child,
             ),
           ),
+        );
+
+        if (backgroundColor case final backgroundColor?) {
+          content = ColoredBox(color: backgroundColor, child: content);
+        }
+
+        return Padding(
+          padding: widget.contentPadding,
+          child: content,
         );
       },
       child: widget.builder(context, scrollController),
     );
 
     if (widget.interactionMode == DismissiblePageInteractionMode.scroll &&
-        _canInnerContentScroll) {
+        _canInnerContentScroll &&
+        _canConvertScrollDeltaToDragDelta) {
       return animatedChild;
     }
 

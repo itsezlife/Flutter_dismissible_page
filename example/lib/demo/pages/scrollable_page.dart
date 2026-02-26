@@ -14,7 +14,7 @@ class ScrollablePage extends StatefulWidget {
 class _ScrollablePageState extends State<ScrollablePage> {
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
+    final size = MediaQuery.sizeOf(context);
 
     final child = SizedBox(
       width: size.width,

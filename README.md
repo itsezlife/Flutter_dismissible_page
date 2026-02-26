@@ -150,7 +150,7 @@ class SecondPage extends StatelessWidget {
   final ValueChanged<DismissiblePageDragUpdateDetails>? onDragUpdate;
 
   /// If true widget will ignore device padding
-  /// [MediaQuery.of(context).padding]
+  /// [MediaQuery.paddingOf(context)]
   final bool isFullScreen;
 
   /// The minimum amount of scale widget can have while dragging
@@ -178,6 +178,12 @@ class SecondPage extends StatelessWidget {
 
   /// The amount of opacity [backgroundColor] will have when start dragging the widget.
   final double startingOpacity;
+
+  /// Whether to enable background opacity animation.
+  final bool enableBackgroundOpacity;
+
+  /// The minimum opacity of the background when the page is displayed.
+  final double minOpacity;
 
   /// The direction in which the widget can be dismissed.
   final DismissiblePageDismissDirection direction;

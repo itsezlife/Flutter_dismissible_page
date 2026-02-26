@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as dev;
 import 'dart:math';
 import 'dart:ui';
 
@@ -12,9 +13,9 @@ part 'dismissible_page_drag_update_details.dart';
 part 'dismissible_page_helpers.dart';
 part 'dismissible_page_interaction_mode.dart';
 part 'dismissible_page_scroll_controller.dart';
-part 'dismissible_routes.dart';
 part 'multi_axis_dismissible_page.dart';
 part 'single_axis_dismissible_page.dart';
+part 'dismissible_routes.dart';
 
 const double _kDismissThreshold = 0.15;
 
@@ -45,7 +46,7 @@ class DismissiblePage extends StatelessWidget {
     this.onDragUpdate,
     this.isFullScreen = true,
     this.disabled = false,
-    this.backgroundColor = Colors.black,
+    this.backgroundColor,
     this.direction = DismissiblePageDismissDirection.vertical,
     this.dismissThresholds = const <DismissiblePageDismissDirection, double>{},
     this.dragStartBehavior = DragStartBehavior.down,
@@ -55,6 +56,8 @@ class DismissiblePage extends StatelessWidget {
     this.maxRadius = 30,
     this.maxTransformValue = .4,
     this.startingOpacity = 1,
+    this.enableBackgroundOpacity = true,
+    this.minOpacity = 0,
     this.hitTestBehavior = HitTestBehavior.opaque,
     this.reverseDuration = const Duration(milliseconds: 200),
     super.key,
@@ -77,7 +80,7 @@ class DismissiblePage extends StatelessWidget {
   final ValueChanged<DismissiblePageDragUpdateDetails>? onDragUpdate;
 
   /// If true widget will ignore device padding
-  /// [MediaQuery.of(context).padding]
+  /// [MediaQuery.paddingOf(context)]
   final bool isFullScreen;
 
   /// The minimum amount of scale widget can have while dragging
@@ -105,11 +108,17 @@ class DismissiblePage extends StatelessWidget {
   final DismissiblePageBuilder builder;
 
   /// Background color of [DismissiblePage]
-  final Color backgroundColor;
+  final Color? backgroundColor;
 
   /// The amount of opacity [backgroundColor] will have when start dragging the
   /// widget.
   final double startingOpacity;
+
+  /// Whether to enable background opacity animation.
+  final bool enableBackgroundOpacity;
+
+  /// The minimum opacity of the background when the page is displayed.
+  final double minOpacity;
 
   /// The direction in which the widget can be dismissed.
   final DismissiblePageDismissDirection direction;
@@ -138,7 +147,7 @@ class DismissiblePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final contentPadding = isFullScreen
         ? EdgeInsets.zero
-        : MediaQuery.of(context).padding;
+        : MediaQuery.paddingOf(context);
 
     if (disabled) {
       return DecoratedBox(
@@ -174,6 +183,8 @@ class DismissiblePage extends StatelessWidget {
         hitTestBehavior: hitTestBehavior,
         contentPadding: contentPadding,
         interactionMode: interactionMode,
+        enableBackgroundOpacity: enableBackgroundOpacity,
+        minOpacity: minOpacity,
         builder: builder,
       );
     }
@@ -198,6 +209,8 @@ class DismissiblePage extends StatelessWidget {
       hitTestBehavior: hitTestBehavior,
       contentPadding: contentPadding,
       interactionMode: interactionMode,
+      enableBackgroundOpacity: enableBackgroundOpacity,
+      minOpacity: minOpacity,
       builder: builder,
     );
   }

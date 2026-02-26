@@ -28,7 +28,7 @@ class DismissiblePageDemoState extends State<DismissiblePageDemo> {
           mainAxisAlignment: MainAxisAlignment.end,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(height: max(20, MediaQuery.of(context).padding.top)),
+            SizedBox(height: max(20, MediaQuery.paddingOf(context).top)),
             Contacts(pageModel: pageModel),
             Stories(pageModel: pageModel),
             LargeImages(pageModel: pageModel),
@@ -266,7 +266,7 @@ class Stories extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.only(
         top: 5,
-        bottom: max(24, MediaQuery.of(context).padding.bottom),
+        bottom: max(24, MediaQuery.paddingOf(context).bottom),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -306,12 +306,14 @@ class DismissibleDemo extends StatelessWidget {
     required this.interactionMode,
     super.key,
     this.startingOpacity = 1,
+    this.minOpacity = .0,
   });
 
   final DismissiblePageModel pageModel;
   final DismissiblePageBuilder builder;
   final DismissiblePageInteractionMode interactionMode;
   final double startingOpacity;
+  final double minOpacity;
 
   @override
   Widget build(BuildContext context) {
@@ -335,6 +337,7 @@ class DismissibleDemo extends StatelessWidget {
       startingOpacity: startingOpacity,
       hitTestBehavior: pageModel.behavior,
       reverseDuration: pageModel.reverseDuration,
+      minOpacity: minOpacity,
       // onDragStart: () => dev.log('onDragStart'),
       // onDragUpdate: (d) => dev.log('onDragUpdate: ${d.offset.dy}'),
       // onDragEnd: () => dev.log('onDragEnd'),

@@ -46,6 +46,8 @@ class MultiAxisDismissiblePage extends StatefulWidget {
     required this.hitTestBehavior,
     required this.contentPadding,
     required this.interactionMode,
+    required this.enableBackgroundOpacity,
+    required this.minOpacity,
     super.key,
   });
 
@@ -83,7 +85,7 @@ class MultiAxisDismissiblePage extends StatefulWidget {
   final DismissiblePageBuilder builder;
 
   /// The background color of the dismissible page.
-  final Color backgroundColor;
+  final Color? backgroundColor;
 
   /// The direction in which the widget can be dismissed.
   final DismissiblePageDismissDirection direction;
@@ -108,6 +110,12 @@ class MultiAxisDismissiblePage extends StatefulWidget {
 
   /// Controls how drag-to-dismiss interaction is coordinated with scrollables.
   final DismissiblePageInteractionMode interactionMode;
+
+  /// Whether to enable background opacity animation.
+  final bool enableBackgroundOpacity;
+
+  /// The minimum opacity of the background when the page is displayed.
+  final double minOpacity;
 
   /// Creates a multi-drag gesture recognizer for handling simultaneous
   /// gestures.
@@ -171,6 +179,11 @@ class _MultiAxisDismissiblePageState extends State<MultiAxisDismissiblePage>
     );
     _defaultScrollController = ScrollController();
     _dragNotifier.addListener(_dragListener);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      DismissiblePageDragNotification(
+        details: _dragNotifier.value,
+      ).dispatch(context);
+    }, debugLabel: 'MultiAxisDismissiblePage.dispatchDragNotification');
   }
 
   /// Animation listener that interpolates the widget back to its original
@@ -191,7 +204,10 @@ class _MultiAxisDismissiblePageState extends State<MultiAxisDismissiblePage>
       offset: offset,
       overallDragValue: k,
       radius: lerpDouble(widget.minRadius, widget.maxRadius, k)!,
-      opacity: (widget.startingOpacity - k).clamp(.0, 1.0),
+      opacity: (widget.startingOpacity - k).clamp(
+        widget.minOpacity,
+        1.0,
+      ),
       scale: lerpDouble(1, widget.minScale, k)!,
     );
   }
@@ -199,6 +215,9 @@ class _MultiAxisDismissiblePageState extends State<MultiAxisDismissiblePage>
   /// Listener for drag updates that forwards changes to the widget's callback.
   void _dragListener() {
     widget.onDragUpdate?.call(_dragNotifier.value);
+    DismissiblePageDragNotification(
+      details: _dragNotifier.value,
+    ).dispatch(context);
   }
 
   /// Status listener for the animation controller.
@@ -261,6 +280,9 @@ class _MultiAxisDismissiblePageState extends State<MultiAxisDismissiblePage>
         (widget.dismissThresholds[DismissiblePageDismissDirection.multi] ??
             _kDismissThreshold);
     if (shouldDismiss) {
+      DismissiblePageDragNotification(
+        details: _dragNotifier.value,
+      ).dispatch(context);
       widget.onDismissed();
     } else {
       unawaited(_moveController.animateTo(1));
@@ -372,22 +394,33 @@ class _MultiAxisDismissiblePageState extends State<MultiAxisDismissiblePage>
       valueListenable: _dragNotifier,
       child: widget.builder(context, scrollController),
       builder: (_, details, child) {
-        final backgroundColor = widget.backgroundColor == Colors.transparent
-            ? Colors.transparent
-            : widget.backgroundColor.withValues(alpha: details.opacity);
+        dev.log('details.opacity: ${details.opacity}');
+        final backgroundColor = switch ((
+          widget.backgroundColor,
+          widget.enableBackgroundOpacity,
+        )) {
+          (final color?, _) when color == Colors.transparent => color,
+          (final color?, true) => color.withValues(alpha: details.opacity),
+          (final color, _) => color,
+        };
 
-        return Container(
-          padding: widget.contentPadding,
-          color: backgroundColor,
-          child: Transform(
-            transform: Matrix4.identity()
-              ..translate(details.offset.dx, details.offset.dy)
-              ..scale(details.scale, details.scale),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(details.radius),
-              child: child,
-            ),
+        Widget content = Transform(
+          transform: Matrix4.identity()
+            ..translate(details.offset.dx, details.offset.dy)
+            ..scale(details.scale, details.scale),
+          child: ClipRRect(
+            borderRadius: BorderRadius.all(Radius.circular(details.radius)),
+            child: child,
           ),
+        );
+
+        if (backgroundColor case final backgroundColor?) {
+          content = ColoredBox(color: backgroundColor, child: content);
+        }
+
+        return Padding(
+          padding: widget.contentPadding,
+          child: content,
         );
       },
     );

@@ -183,7 +183,7 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
   DismissiblePageDragUpdateDetails get _details =>
       DismissiblePageDragUpdateDetails(
         overallDragValue: min(
-          _dragExtent / context.size!.height,
+          _dragExtent / _overallDragAxisExtent,
           widget.maxTransformValue,
         ),
         radius: _radius,

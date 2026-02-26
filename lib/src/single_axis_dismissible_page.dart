@@ -219,9 +219,7 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
 
   /// Returns true if the configured direction is along the X-axis.
   bool get _directionIsXAxis {
-    return widget.direction == DismissiblePageDismissDirection.horizontal ||
-        widget.direction == DismissiblePageDismissDirection.endToStart ||
-        widget.direction == DismissiblePageDismissDirection.startToEnd;
+    return widget.direction.axes.contains(Axis.horizontal);
   }
 
   /// Converts a drag extent to its corresponding dismiss direction.

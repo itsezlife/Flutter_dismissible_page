@@ -13,9 +13,9 @@ part 'dismissible_page_drag_update_details.dart';
 part 'dismissible_page_helpers.dart';
 part 'dismissible_page_interaction_mode.dart';
 part 'dismissible_page_scroll_controller.dart';
-part 'dismissible_routes.dart';
 part 'multi_axis_dismissible_page.dart';
 part 'single_axis_dismissible_page.dart';
+part 'dismissible_routes.dart';
 
 const double _kDismissThreshold = 0.15;
 

@@ -3,11 +3,11 @@ part of 'dismissible_page.dart';
 /// {@template transparent_route}
 /// A transparent page route that provides a fade transition and allows
 /// the underlying content to show through.
-///
+/// 
 /// This route is used internally by [DismissiblePage] to create modal
 /// presentations with custom background colors and transition effects.
 /// The route supports:
-///
+/// 
 /// - Transparent/semi-transparent backgrounds
 /// - Fade in/out transitions
 /// - Barrier dismissal
@@ -35,7 +35,7 @@ class TransparentRoute<T> extends PageRoute<T>
   final String? title;
 
   /// Whether the route should maintain its state when not visible.
-  ///
+  /// 
   /// When true, the route's state is preserved even when another route
   /// is pushed on top of it.
   @override
@@ -50,7 +50,7 @@ class TransparentRoute<T> extends PageRoute<T>
   final Duration reverseTransitionDuration;
 
   /// The background color of the route's barrier.
-  ///
+  /// 
   /// This color is displayed behind the route content and can be
   /// transparent or semi-transparent to allow underlying content
   /// to show through.
@@ -73,14 +73,14 @@ class TransparentRoute<T> extends PageRoute<T>
   bool get barrierDismissible => true;
 
   /// Whether this route obscures previous routes when active.
-  ///
+  /// 
   /// Returns false to allow underlying content to remain visible
   /// through transparent areas.
   @override
   bool get opaque => false;
 
   /// Builds the transition animation for this route.
-  ///
+  /// 
   /// Creates a fade transition that animates the opacity of the
   /// route content from 0.0 to 1.0 during the forward transition
   /// and from 1.0 to 0.0 during the reverse transition.

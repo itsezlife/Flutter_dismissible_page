@@ -179,6 +179,11 @@ class _MultiAxisDismissiblePageState extends State<MultiAxisDismissiblePage>
     );
     _defaultScrollController = ScrollController();
     _dragNotifier.addListener(_dragListener);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      DismissiblePageDragNotification(
+        details: _dragNotifier.value,
+      ).dispatch(context);
+    }, debugLabel: 'MultiAxisDismissiblePage.dispatchDragNotification');
   }
 
   /// Animation listener that interpolates the widget back to its original
@@ -201,7 +206,7 @@ class _MultiAxisDismissiblePageState extends State<MultiAxisDismissiblePage>
       radius: lerpDouble(widget.minRadius, widget.maxRadius, k)!,
       opacity: (widget.startingOpacity - k).clamp(
         widget.minOpacity,
-        widget.startingOpacity,
+        1.0,
       ),
       scale: lerpDouble(1, widget.minScale, k)!,
     );
@@ -275,6 +280,9 @@ class _MultiAxisDismissiblePageState extends State<MultiAxisDismissiblePage>
         (widget.dismissThresholds[DismissiblePageDismissDirection.multi] ??
             _kDismissThreshold);
     if (shouldDismiss) {
+      DismissiblePageDragNotification(
+        details: _dragNotifier.value,
+      ).dispatch(context);
       widget.onDismissed();
     } else {
       unawaited(_moveController.animateTo(1));

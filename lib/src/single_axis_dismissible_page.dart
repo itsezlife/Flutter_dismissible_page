@@ -165,6 +165,7 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
     _updateMoveAnimation();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkCanInnerContentScroll();
+      DismissiblePageDragNotification(details: _details).dispatch(context);
     }, debugLabel: 'SingleAxisDismissiblePage.checkCanInnerContentScroll');
   }
 
@@ -179,23 +180,25 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
     setState(() {});
   }
 
+  DismissiblePageDragUpdateDetails get _details =>
+      DismissiblePageDragUpdateDetails(
+        overallDragValue: min(
+          _dragExtent / context.size!.height,
+          widget.maxTransformValue,
+        ),
+        radius: _radius,
+        opacity: _opacity,
+        offset: _offset,
+        scale: _scale ?? 0.0,
+      );
+
   /// Animation listener that triggers drag update callbacks.
   void _moveAnimationListener() {
-    final details = DismissiblePageDragUpdateDetails(
-      overallDragValue: min(
-        _dragExtent / context.size!.height,
-        widget.maxTransformValue,
-      ),
-      radius: _radius,
-      opacity: _opacity,
-      offset: _offset,
-      scale: _scale ?? 0.0,
-    );
     if (widget.onDragUpdate case final onDragUpdate?) {
-      onDragUpdate.call(details);
+      onDragUpdate.call(_details);
     }
 
-    DismissiblePageDragNotification(details: details).dispatch(context);
+    DismissiblePageDragNotification(details: _details).dispatch(context);
   }
 
   @override
@@ -349,6 +352,7 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
     _dragUnderway = false;
     if (!_moveController.isDismissed) {
       if (_moveController.value > _dismissThreshold) {
+        DismissiblePageDragNotification(details: _details).dispatch(context);
         widget.onDismissed.call();
       } else {
         _moveController
@@ -480,6 +484,7 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
   /// Handles animation status changes for the dismiss animation.
   void _handleDismissStatusChanged(AnimationStatus status) {
     if (status == AnimationStatus.completed && !_dragUnderway) {
+      DismissiblePageDragNotification(details: _details).dispatch(context);
       widget.onDismissed();
     }
   }
@@ -526,7 +531,7 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
   /// The current opacity, calculated based on drag progress.
   double get _opacity => (widget.startingOpacity - _dragValue).clamp(
     widget.minOpacity,
-    widget.startingOpacity,
+    1.0,
   );
 
   @override

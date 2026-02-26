@@ -496,7 +496,6 @@ class LargeImageDetailsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return DismissibleDemo(
       pageModel: pageModel,
-      minOpacity: .8,
       interactionMode: DismissiblePageInteractionMode.scroll,
       builder: (context, scrollController) => Scaffold(
         body: SafeArea(

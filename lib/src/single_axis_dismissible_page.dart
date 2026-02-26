@@ -214,7 +214,7 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
 
   /// Returns true if the scroll delta can be converted to a drag delta.
   bool get _canConvertScrollDeltaToDragDelta =>
-      widget.direction == DismissiblePageDismissDirection.vertical &&
+      widget.direction.axes.contains(Axis.vertical) &&
       widget.interactionMode == DismissiblePageInteractionMode.scroll;
 
   /// Returns true if the configured direction is along the X-axis.

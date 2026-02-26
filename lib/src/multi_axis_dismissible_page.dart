@@ -281,7 +281,7 @@ class _MultiAxisDismissiblePageState extends State<MultiAxisDismissiblePage>
             _kDismissThreshold);
     if (shouldDismiss) {
       DismissiblePageDragNotification(
-        details: _dragNotifier.value,
+        details: _dragNotifier.value.copyWith(isDismissed: true),
       ).dispatch(context);
       widget.onDismissed();
     } else {

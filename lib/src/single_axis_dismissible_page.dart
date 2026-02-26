@@ -352,7 +352,9 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
     _dragUnderway = false;
     if (!_moveController.isDismissed) {
       if (_moveController.value > _dismissThreshold) {
-        DismissiblePageDragNotification(details: _details).dispatch(context);
+        DismissiblePageDragNotification(
+          details: _details.copyWith(isDismissed: true),
+        ).dispatch(context);
         widget.onDismissed.call();
       } else {
         _moveController
@@ -484,7 +486,9 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
   /// Handles animation status changes for the dismiss animation.
   void _handleDismissStatusChanged(AnimationStatus status) {
     if (status == AnimationStatus.completed && !_dragUnderway) {
-      DismissiblePageDragNotification(details: _details).dispatch(context);
+      DismissiblePageDragNotification(
+        details: _details.copyWith(isDismissed: true),
+      ).dispatch(context);
       widget.onDismissed();
     }
   }

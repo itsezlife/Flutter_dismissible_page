@@ -66,6 +66,7 @@ class DismissiblePageDragUpdateDetails {
         'opacity': opacity,
         'scale': scale,
         'offset': offset,
+        'isDismissed': isDismissed,
       };
 
   @override

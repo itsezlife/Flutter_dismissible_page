@@ -444,7 +444,7 @@ class _MultiAxisDismissiblePageState extends State<MultiAxisDismissiblePage>
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) {
           DismissiblePageDragNotification(
-            details: _dragNotifier.value,
+            details: _dragNotifier.value.copyWith(isDismissed: true),
           ).dispatch(context);
         }
       },

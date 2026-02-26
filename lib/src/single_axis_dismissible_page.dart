@@ -214,14 +214,12 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
 
   /// Returns true if the scroll delta can be converted to a drag delta.
   bool get _canConvertScrollDeltaToDragDelta =>
-      widget.direction == DismissiblePageDismissDirection.vertical &&
+      widget.direction.axes.contains(Axis.vertical) &&
       widget.interactionMode == DismissiblePageInteractionMode.scroll;
 
   /// Returns true if the configured direction is along the X-axis.
   bool get _directionIsXAxis {
-    return widget.direction == DismissiblePageDismissDirection.horizontal ||
-        widget.direction == DismissiblePageDismissDirection.endToStart ||
-        widget.direction == DismissiblePageDismissDirection.startToEnd;
+    return widget.direction.axes.contains(Axis.horizontal);
   }
 
   /// Converts a drag extent to its corresponding dismiss direction.
@@ -352,13 +350,18 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
     _dragUnderway = false;
     if (!_moveController.isDismissed) {
       if (_moveController.value > _dismissThreshold) {
-        DismissiblePageDragNotification(details: _details).dispatch(context);
+        DismissiblePageDragNotification(
+          details: _details.copyWith(isDismissed: true),
+        ).dispatch(context);
         widget.onDismissed.call();
       } else {
         _moveController
           ..reverseDuration =
               widget.reverseDuration * (1 / _moveController.value)
           ..reverse();
+        DismissiblePageDragNotification(
+          details: _details,
+        ).dispatch(context);
         widget.onDragEnd?.call();
       }
     }
@@ -484,7 +487,9 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
   /// Handles animation status changes for the dismiss animation.
   void _handleDismissStatusChanged(AnimationStatus status) {
     if (status == AnimationStatus.completed && !_dragUnderway) {
-      DismissiblePageDragNotification(details: _details).dispatch(context);
+      DismissiblePageDragNotification(
+        details: _details.copyWith(isDismissed: true),
+      ).dispatch(context);
       widget.onDismissed();
     }
   }
@@ -541,64 +546,75 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
         ? _scrollController
         : _defaultScrollController;
 
-    final animatedChild = AnimatedBuilder(
-      animation: _moveAnimation,
-      builder: (context, child) {
-        final backgroundColor = switch ((
-          widget.backgroundColor,
-          widget.enableBackgroundOpacity,
-        )) {
-          (final color?, _) when color == Colors.transparent => color,
-          (final color?, true) => color.withValues(alpha: _opacity),
-          (final color, _) => color,
-        };
+    return PopScope(
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) {
+          DismissiblePageDragNotification(
+            details: _details.copyWith(isDismissed: true),
+          ).dispatch(context);
+        }
+      },
+      child: () {
+        final animatedChild = AnimatedBuilder(
+          animation: _moveAnimation,
+          builder: (context, child) {
+            final backgroundColor = switch ((
+              widget.backgroundColor,
+              widget.enableBackgroundOpacity,
+            )) {
+              (final color?, _) when color == Colors.transparent => color,
+              (final color?, true) => color.withValues(alpha: _opacity),
+              (final color, _) => color,
+            };
 
-        Widget content = FractionalTranslation(
-          translation: _offset,
-          child: Transform.scale(
-            scale: _scale ?? 0,
-            child: ClipRRect(
-              borderRadius: BorderRadius.all(Radius.circular(_radius)),
-              child: child,
-            ),
-          ),
+            Widget content = FractionalTranslation(
+              translation: _offset,
+              child: Transform.scale(
+                scale: _scale ?? 0,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.all(Radius.circular(_radius)),
+                  child: child,
+                ),
+              ),
+            );
+
+            if (backgroundColor case final backgroundColor?) {
+              content = ColoredBox(color: backgroundColor, child: content);
+            }
+
+            return Padding(
+              padding: widget.contentPadding,
+              child: content,
+            );
+          },
+          child: widget.builder(context, scrollController),
         );
 
-        if (backgroundColor case final backgroundColor?) {
-          content = ColoredBox(color: backgroundColor, child: content);
+        if (widget.interactionMode == DismissiblePageInteractionMode.scroll &&
+            _canInnerContentScroll &&
+            _canConvertScrollDeltaToDragDelta) {
+          return animatedChild;
         }
 
-        return Padding(
-          padding: widget.contentPadding,
-          child: content,
+        return GestureDetector(
+          onHorizontalDragStart: _directionIsXAxis ? _handleDragStart : null,
+          onHorizontalDragUpdate: _directionIsXAxis ? _handleDragUpdate : null,
+          onHorizontalDragEnd: _directionIsXAxis ? _handleDragEnd : null,
+          onVerticalDragStart: _directionIsXAxis ? null : _handleDragStart,
+          onVerticalDragUpdate: _directionIsXAxis ? null : _handleDragUpdate,
+          onVerticalDragEnd: _directionIsXAxis ? null : _handleDragEnd,
+          behavior: widget.hitTestBehavior,
+          dragStartBehavior: widget.dragStartBehavior,
+          child: _DismissiblePageListener(
+            onStart: (_) => _handleDragStart(),
+            onUpdate: _handleDragUpdate,
+            onEnd: _handleDragEnd,
+            parentState: this,
+            direction: widget.direction,
+            child: animatedChild,
+          ),
         );
-      },
-      child: widget.builder(context, scrollController),
-    );
-
-    if (widget.interactionMode == DismissiblePageInteractionMode.scroll &&
-        _canInnerContentScroll &&
-        _canConvertScrollDeltaToDragDelta) {
-      return animatedChild;
-    }
-
-    return GestureDetector(
-      onHorizontalDragStart: _directionIsXAxis ? _handleDragStart : null,
-      onHorizontalDragUpdate: _directionIsXAxis ? _handleDragUpdate : null,
-      onHorizontalDragEnd: _directionIsXAxis ? _handleDragEnd : null,
-      onVerticalDragStart: _directionIsXAxis ? null : _handleDragStart,
-      onVerticalDragUpdate: _directionIsXAxis ? null : _handleDragUpdate,
-      onVerticalDragEnd: _directionIsXAxis ? null : _handleDragEnd,
-      behavior: widget.hitTestBehavior,
-      dragStartBehavior: widget.dragStartBehavior,
-      child: _DismissiblePageListener(
-        onStart: (_) => _handleDragStart(),
-        onUpdate: _handleDragUpdate,
-        onEnd: _handleDragEnd,
-        parentState: this,
-        direction: widget.direction,
-        child: animatedChild,
-      ),
+      }(),
     );
   }
 }

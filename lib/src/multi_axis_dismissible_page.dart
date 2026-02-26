@@ -281,11 +281,14 @@ class _MultiAxisDismissiblePageState extends State<MultiAxisDismissiblePage>
             _kDismissThreshold);
     if (shouldDismiss) {
       DismissiblePageDragNotification(
-        details: _dragNotifier.value,
+        details: _dragNotifier.value.copyWith(isDismissed: true),
       ).dispatch(context);
       widget.onDismissed();
     } else {
       unawaited(_moveController.animateTo(1));
+      DismissiblePageDragNotification(
+        details: _dragNotifier.value,
+      ).dispatch(context);
       widget.onDragEnd?.call();
     }
   }
@@ -437,14 +440,23 @@ class _MultiAxisDismissiblePageState extends State<MultiAxisDismissiblePage>
     ///
     /// Thought, Scroll controller still dispatches the updates to the offset
     /// when is being scrolled normally.
-    return _DismissiblePageListener(
-      parentState: this,
-      onStart: _startDrag,
-      onUpdate: update,
-      onEnd: end,
-      onPointerDown: _routePointer,
-      direction: widget.direction,
-      child: content,
+    return PopScope(
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) {
+          DismissiblePageDragNotification(
+            details: _dragNotifier.value,
+          ).dispatch(context);
+        }
+      },
+      child: _DismissiblePageListener(
+        parentState: this,
+        onStart: _startDrag,
+        onUpdate: update,
+        onEnd: end,
+        onPointerDown: _routePointer,
+        direction: widget.direction,
+        child: content,
+      ),
     );
   }
 }

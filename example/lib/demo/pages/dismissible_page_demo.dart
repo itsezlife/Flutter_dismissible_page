@@ -307,6 +307,7 @@ class DismissibleDemo extends StatelessWidget {
     super.key,
     this.startingOpacity = 1,
     this.minOpacity = .0,
+    this.maxTransformValue = .5,
   });
 
   final DismissiblePageModel pageModel;
@@ -314,6 +315,7 @@ class DismissibleDemo extends StatelessWidget {
   final DismissiblePageInteractionMode interactionMode;
   final double startingOpacity;
   final double minOpacity;
+  final double maxTransformValue;
 
   @override
   Widget build(BuildContext context) {
@@ -327,7 +329,7 @@ class DismissibleDemo extends StatelessWidget {
       minRadius: pageModel.minRadius,
       maxRadius: pageModel.maxRadius,
       dragSensitivity: pageModel.dragSensitivity,
-      maxTransformValue: pageModel.maxTransformValue,
+      maxTransformValue: maxTransformValue,
       direction: pageModel.direction,
       disabled: pageModel.disabled,
       backgroundColor: pageModel.backgroundColor,
@@ -497,6 +499,8 @@ class LargeImageDetailsPage extends StatelessWidget {
     return DismissibleDemo(
       pageModel: pageModel,
       interactionMode: DismissiblePageInteractionMode.scroll,
+      startingOpacity: .6,
+      maxTransformValue: 1,
       builder: (context, scrollController) => Scaffold(
         body: SafeArea(
           top: false,

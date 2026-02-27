@@ -534,10 +534,11 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
       lerpDouble(widget.minRadius, widget.maxRadius, _dragValue)!;
 
   /// The current opacity, calculated based on drag progress.
-  double get _opacity => (widget.startingOpacity - _dragValue).clamp(
+  double get _opacity => lerpDouble(
+    widget.startingOpacity,
     widget.minOpacity,
-    1.0,
-  );
+    _dragValue,
+  )!.clamp(widget.minOpacity, 1.0);
 
   @override
   Widget build(BuildContext context) {

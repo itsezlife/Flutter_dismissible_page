@@ -204,10 +204,11 @@ class _MultiAxisDismissiblePageState extends State<MultiAxisDismissiblePage>
       offset: offset,
       overallDragValue: k,
       radius: lerpDouble(widget.minRadius, widget.maxRadius, k)!,
-      opacity: (widget.startingOpacity - k).clamp(
+      opacity: lerpDouble(
+        widget.startingOpacity,
         widget.minOpacity,
-        1.0,
-      ),
+        k,
+      )!.clamp(widget.minOpacity, 1.0),
       scale: lerpDouble(1, widget.minScale, k)!,
     );
   }

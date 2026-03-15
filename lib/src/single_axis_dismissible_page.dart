@@ -143,6 +143,9 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
   /// The text direction of the current context, used for RTL support.
   late final TextDirection _textDirection = Directionality.of(context);
 
+  /// The screen size, used for calculating drag percentages.
+  late final Size _screenSize = MediaQuery.sizeOf(context);
+
   bool _canInnerContentScroll = false;
 
   @override
@@ -256,8 +259,7 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
   /// The total extent of the drag axis (width for horizontal, height for
   /// vertical).
   double get _overallDragAxisExtent {
-    final size = context.size;
-    return _directionIsXAxis ? size!.width : size!.height;
+    return _directionIsXAxis ? _screenSize.width : _screenSize.height;
   }
 
   /// Handles the start of a drag gesture.

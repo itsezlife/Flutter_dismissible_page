@@ -25,6 +25,30 @@
 Flutter widget that allows you to dismiss page to any direction, forget the boring back button and
 plain transitions.
 
+## Why This Fork Exists
+
+This fork focuses on fixing long-standing scroll + dismiss gesture conflicts in
+`DismissiblePage`, especially for pages that contain scrollable content.
+
+### What It Fixes
+
+- Introduces a custom `ScrollController` + `ScrollPosition` arbitration path
+  for `interactionMode: DismissiblePageInteractionMode.scroll`.
+- Ensures drag delta is routed correctly between page dismissal and inner
+  scrollable content.
+- Fixes the issue where reversing direction could leave the page in a dismiss
+  state or leak part of the delta into dismiss drag unexpectedly.
+
+### Behavior Comparison
+
+Old behavior (problematic):
+
+https://user-images.githubusercontent.com/26390946/194924545-1712b63b-2a25-4182-b731-db49ecc50c23.mov
+
+New behavior (expected):
+
+https://github.com/user-attachments/assets/9ef89285-7d6a-45f9-87aa-d589d8d89c5e
+
 ## Features:
 
 - Dismiss to any direction

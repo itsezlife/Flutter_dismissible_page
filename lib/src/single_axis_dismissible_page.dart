@@ -50,6 +50,7 @@ class SingleAxisDismissiblePage extends StatefulWidget {
     required this.interactionMode,
     required this.enableBackgroundOpacity,
     required this.minOpacity,
+    this.disabled = false,
     super.key,
   });
 
@@ -70,6 +71,10 @@ class SingleAxisDismissiblePage extends StatefulWidget {
 
   /// Whether the widget should ignore device padding.
   final bool isFullScreen;
+
+  /// If true, drag-to-dismiss gestures are disabled (content remains
+  /// interactive).
+  final bool disabled;
 
   /// The minimum scale factor applied during drag gestures.
   final double minScale;
@@ -600,12 +605,24 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
         }
 
         return GestureDetector(
-          onHorizontalDragStart: _directionIsXAxis ? _handleDragStart : null,
-          onHorizontalDragUpdate: _directionIsXAxis ? _handleDragUpdate : null,
-          onHorizontalDragEnd: _directionIsXAxis ? _handleDragEnd : null,
-          onVerticalDragStart: _directionIsXAxis ? null : _handleDragStart,
-          onVerticalDragUpdate: _directionIsXAxis ? null : _handleDragUpdate,
-          onVerticalDragEnd: _directionIsXAxis ? null : _handleDragEnd,
+          onHorizontalDragStart: (_directionIsXAxis && !widget.disabled)
+              ? _handleDragStart
+              : null,
+          onHorizontalDragUpdate: (_directionIsXAxis && !widget.disabled)
+              ? _handleDragUpdate
+              : null,
+          onHorizontalDragEnd: (_directionIsXAxis && !widget.disabled)
+              ? _handleDragEnd
+              : null,
+          onVerticalDragStart: (!_directionIsXAxis && !widget.disabled)
+              ? _handleDragStart
+              : null,
+          onVerticalDragUpdate: (!_directionIsXAxis && !widget.disabled)
+              ? _handleDragUpdate
+              : null,
+          onVerticalDragEnd: (!_directionIsXAxis && !widget.disabled)
+              ? _handleDragEnd
+              : null,
           behavior: widget.hitTestBehavior,
           dragStartBehavior: widget.dragStartBehavior,
           child: _DismissiblePageListener(
@@ -614,6 +631,7 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
             onEnd: _handleDragEnd,
             parentState: this,
             direction: widget.direction,
+            enabled: !widget.disabled,
             child: animatedChild,
           ),
         );

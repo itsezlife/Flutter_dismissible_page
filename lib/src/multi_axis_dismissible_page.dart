@@ -48,6 +48,7 @@ class MultiAxisDismissiblePage extends StatefulWidget {
     required this.interactionMode,
     required this.enableBackgroundOpacity,
     required this.minOpacity,
+    this.disabled = false,
     super.key,
   });
 
@@ -68,6 +69,10 @@ class MultiAxisDismissiblePage extends StatefulWidget {
 
   /// Whether the widget should ignore device padding.
   final bool isFullScreen;
+
+  /// If true, drag-to-dismiss gestures are disabled (content remains
+  /// interactive).
+  final bool disabled;
 
   /// The minimum scale factor applied during drag gestures.
   final double minScale;
@@ -456,6 +461,7 @@ class _MultiAxisDismissiblePageState extends State<MultiAxisDismissiblePage>
         onEnd: end,
         onPointerDown: _routePointer,
         direction: widget.direction,
+        enabled: !widget.disabled,
         child: content,
       ),
     );

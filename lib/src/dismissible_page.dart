@@ -149,23 +149,11 @@ class DismissiblePage extends StatelessWidget {
         ? EdgeInsets.zero
         : MediaQuery.paddingOf(context);
 
-    if (disabled) {
-      return DecoratedBox(
-        decoration: BoxDecoration(color: backgroundColor),
-        child: Padding(
-          padding: contentPadding,
-          child: ClipRRect(
-            borderRadius: BorderRadius.all(Radius.circular(minRadius)),
-            child: builder(context, ScrollController()),
-          ),
-        ),
-      );
-    }
-
     if (direction == DismissiblePageDismissDirection.multi) {
       return MultiAxisDismissiblePage(
         onDismissed: onDismissed,
         isFullScreen: isFullScreen,
+        disabled: disabled,
         backgroundColor: backgroundColor,
         direction: direction,
         dismissThresholds: dismissThresholds,
@@ -192,6 +180,7 @@ class DismissiblePage extends StatelessWidget {
     return SingleAxisDismissiblePage(
       onDismissed: onDismissed,
       isFullScreen: isFullScreen,
+      disabled: disabled,
       backgroundColor: backgroundColor,
       direction: direction,
       dismissThresholds: dismissThresholds,

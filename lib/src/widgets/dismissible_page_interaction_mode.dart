@@ -1,4 +1,4 @@
-part of 'dismissible_page.dart';
+import 'package:flutter/material.dart';
 
 /// Defines how dismiss gestures are coordinated with nested scrollables.
 enum DismissiblePageInteractionMode {

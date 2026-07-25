@@ -1,16 +1,31 @@
-part of 'dismissible_page.dart';
+import 'package:dismissible_page/src/widgets/dismissible_page_dismiss_direction.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 
-mixin _DismissiblePageMixin {
-  late final AnimationController _moveController;
-  int _activePointerCount = 0;
+/// Shared gesture locals for dismissible page State classes.
+///
+/// Package-internal; not exported from the root barrel.
+@internal
+mixin DismissiblePageGestureMixin {
+  /// Animation that drives settle / reverse motion after a drag.
+  late final AnimationController moveController;
 
-  bool _dragUnderway = false;
+  /// Active pointer count used to ignore multi-touch during dismissal.
+  int activePointerCount = 0;
 
-  bool get _isActive => _dragUnderway || _moveController.isAnimating;
+  /// Whether a drag gesture is currently underway.
+  bool dragUnderway = false;
+
+  /// Whether a drag is underway or a settle animation is running.
+  bool get isActive => dragUnderway || moveController.isAnimating;
 }
 
-class _DismissiblePageListener extends StatelessWidget {
-  const _DismissiblePageListener({
+/// Package-internal listener that coordinates scroll notifications with
+/// dismiss drag callbacks.
+@internal
+class DismissiblePageListener extends StatelessWidget {
+  /// Creates a [DismissiblePageListener].
+  const DismissiblePageListener({
     required this.parentState,
     required this.onStart,
     required this.onUpdate,
@@ -19,18 +34,34 @@ class _DismissiblePageListener extends StatelessWidget {
     required this.child,
     this.enabled = true,
     this.onPointerDown,
+    super.key,
   });
 
-  final _DismissiblePageMixin parentState;
+  /// Parent State that owns shared gesture locals.
+  final DismissiblePageGestureMixin parentState;
+
+  /// Called when a dismiss drag starts.
   final ValueChanged<Offset> onStart;
+
+  /// Called when a dismiss drag ends.
   final ValueChanged<DragEndDetails> onEnd;
+
+  /// Called when a dismiss drag updates.
   final ValueChanged<DragUpdateDetails> onUpdate;
+
+  /// Optional pointer-down routing (e.g. multi-axis recognizer).
   final ValueChanged<PointerDownEvent>? onPointerDown;
+
+  /// Allowed dismiss direction for scroll-notification filtering.
   final DismissiblePageDismissDirection direction;
+
+  /// Child content.
   final Widget child;
+
+  /// Whether gesture / scroll listening is enabled.
   final bool enabled;
 
-  bool get _dragUnderway => parentState._dragUnderway;
+  bool get _dragUnderway => parentState.dragUnderway;
 
   void _startOrUpdateDrag(DragUpdateDetails? details) {
     if (details == null) return;
@@ -94,14 +125,14 @@ class _DismissiblePageListener extends StatelessWidget {
 
   void _onPointerDown(PointerDownEvent event) {
     if (!enabled) return;
-    parentState._activePointerCount++;
+    parentState.activePointerCount++;
     onPointerDown?.call(event);
   }
 
   void _onPointerUp(_) {
     if (!enabled) return;
-    parentState._activePointerCount--;
-    if (_dragUnderway && parentState._activePointerCount == 0) {
+    parentState.activePointerCount--;
+    if (_dragUnderway && parentState.activePointerCount == 0) {
       onEnd(DragEndDetails());
     }
   }

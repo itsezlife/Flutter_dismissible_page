@@ -1,4 +1,4 @@
-part of 'dismissible_page.dart';
+import 'package:flutter/painting.dart';
 
 ///
 enum DismissiblePageDismissDirection {

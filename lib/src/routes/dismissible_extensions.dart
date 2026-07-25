@@ -1,6 +1,7 @@
-part of 'dismissible_page.dart';
+import 'package:dismissible_page/src/routes/dismissible_routes.dart';
+import 'package:flutter/material.dart';
 
-const _transitionDuration = Duration(milliseconds: 250);
+const _kTransitionDuration = Duration(milliseconds: 250);
 
 /// BuildContext Helper methods
 extension DismissibleContextExt on BuildContext {
@@ -8,8 +9,8 @@ extension DismissibleContextExt on BuildContext {
   Future<T?> pushTransparentRoute<T>(
     Widget page, {
     Color backgroundColor = Colors.transparent,
-    Duration transitionDuration = _transitionDuration,
-    Duration reverseTransitionDuration = _transitionDuration,
+    Duration transitionDuration = _kTransitionDuration,
+    Duration reverseTransitionDuration = _kTransitionDuration,
     bool rootNavigator = false,
   }) {
     return Navigator.of(this, rootNavigator: rootNavigator).push(

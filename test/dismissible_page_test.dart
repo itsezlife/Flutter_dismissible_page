@@ -66,35 +66,30 @@ void main() {
     expect(find.byType(MultiAxisDismissiblePage), findsOneWidget);
   });
 
-  /// Test that when disabled=true, [DismissiblePage] creates a simple
-  /// [DecoratedBox]
-  /// instead of the dismissible widgets, effectively disabling dismissal
-  /// functionality.
-  testWidgets('Should create DecoratedBox when disabled', (tester) async {
-    const backgroundColor = Colors.greenAccent;
+  /// Test that when disabled=true, drag-to-dismiss is ignored while the page
+  /// widget remains.
+  testWidgets('disabled ignores drag-to-dismiss', (tester) async {
+    var dragValue = 0.0;
+    var dismissed = false;
+
     await tester.pumpWidget(
       DismissiblePage(
-        onDismissed: () {},
-        backgroundColor: backgroundColor,
-        disabled: true, // This should disable dismissal functionality
+        onDismissed: () => dismissed = true,
+        backgroundColor: Colors.greenAccent,
+        disabled: true,
+        onDragUpdate: (value) => dragValue = value.overallDragValue,
         interactionMode: DismissiblePageInteractionMode.gesture,
         builder: (context, scrollController) => const FlutterLogo(),
       ),
     );
 
-    // Verify a DecoratedBox with the correct background color is created
-    expect(
-      find.byWidgetPredicate(
-        (w) =>
-            w is DecoratedBox &&
-            w.decoration is BoxDecoration &&
-            (w.decoration as BoxDecoration).color == backgroundColor,
-      ),
-      findsOneWidget,
-    );
-    // Verify no dismissible widgets are created when disabled
-    expect(find.byType(SingleAxisDismissiblePage), findsNothing);
-    expect(find.byType(MultiAxisDismissiblePage), findsNothing);
+    expect(find.byType(SingleAxisDismissiblePage), findsOneWidget);
+
+    await tester.drag(find.byType(DismissiblePage), const Offset(0, 200));
+    await tester.pumpAndSettle();
+
+    expect(dragValue, 0.0);
+    expect(dismissed, isFalse);
   });
 
   /// Test that the [onDragUpdate] callback is properly invoked during drag

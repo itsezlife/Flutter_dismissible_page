@@ -1,10 +1,21 @@
 // ignore_for_file: discarded_futures
 
-part of 'dismissible_page.dart';
+import 'dart:math';
+import 'dart:ui';
+
+import 'package:dismissible_page/dismissible_page_engine.dart';
+import 'package:dismissible_page/src/widgets/dismissible_page_builder.dart';
+import 'package:dismissible_page/src/widgets/dismissible_page_dismiss_direction.dart';
+import 'package:dismissible_page/src/widgets/dismissible_page_drag_update_details.dart';
+import 'package:dismissible_page/src/widgets/dismissible_page_helpers.dart';
+import 'package:dismissible_page/src/widgets/dismissible_page_interaction_mode.dart';
+import 'package:dismissible_page/src/widgets/dismissible_page_scroll_controller.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart';
 
 /// {@template single_axis_dismissible_page}
-/// A specialized implementation of [DismissiblePage] that handles
-/// single-directional dismissal gestures.
+/// A specialized dismissible page that handles single-directional dismissal
+/// gestures.
 ///
 /// This widget allows users to dismiss content by dragging in a specific
 /// direction (horizontal, vertical, or constrained directional). It provides
@@ -130,14 +141,14 @@ class SingleAxisDismissiblePage extends StatefulWidget {
 }
 
 class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
-    with TickerProviderStateMixin, _DismissiblePageMixin {
+    with TickerProviderStateMixin, DismissiblePageGestureMixin {
   static const double _kOriginEpsilon = 1e-6;
 
   /// Animation that controls the movement offset during drag gestures.
   late Animation<Offset> _moveAnimation;
 
   /// Custom scroll controller for scroll-aware dismissal mode.
-  late final _DismissiblePageScrollController _scrollController;
+  late final DismissiblePageScrollController _scrollController;
 
   /// Default scroll controller for gesture-only mode.
   late final ScrollController _defaultScrollController;
@@ -156,18 +167,18 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
   @override
   void initState() {
     super.initState();
-    _scrollController = _DismissiblePageScrollController(
+    _scrollController = DismissiblePageScrollController(
       shouldConsumeUserOffset: _shouldConsumeUserOffset,
       onDismissDragStart: _handleScrollDragStart,
       onDismissDragUpdate: _handleScrollDragUpdate,
       onDismissDragEnd: _handleScrollDragEnd,
     );
     _defaultScrollController = ScrollController();
-    _moveController = AnimationController(
+    moveController = AnimationController(
       duration: Duration.zero,
       vsync: this,
     );
-    _moveController
+    moveController
       ..addStatusListener(_handleDismissStatusChanged)
       ..addListener(_moveAnimationListener);
     _updateMoveAnimation();
@@ -213,7 +224,7 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
   void dispose() {
     _scrollController.dispose();
     _defaultScrollController.dispose();
-    _moveController
+    moveController
       ..removeStatusListener(_handleDismissStatusChanged)
       ..removeListener(_moveAnimationListener)
       ..dispose();
@@ -270,21 +281,21 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
   /// Handles the start of a drag gesture.
   void _handleDragStart([DragStartDetails? _]) {
     widget.onDragStart?.call();
-    _dragUnderway = true;
-    if (_moveController.isAnimating) {
+    dragUnderway = true;
+    if (moveController.isAnimating) {
       _dragExtent =
-          _moveController.value * _overallDragAxisExtent * _dragExtent.sign;
-      _moveController.stop();
+          moveController.value * _overallDragAxisExtent * _dragExtent.sign;
+      moveController.stop();
     } else {
       _dragExtent = 0.0;
-      _moveController.value = 0.0;
+      moveController.value = 0.0;
     }
     _updateMoveAnimation();
   }
 
   /// Handles drag update events from gesture recognizers.
   void _handleDragUpdate(DragUpdateDetails details) {
-    if (!_isActive || _moveController.isAnimating) return;
+    if (!isActive || moveController.isAnimating) return;
     final delta = details.primaryDelta;
     if (delta == null) return;
     _applyDragDelta(delta);
@@ -292,7 +303,7 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
 
   /// Applies a drag delta to the current drag extent.
   void _applyDragDelta(double delta, {bool isScrollDelta = false}) {
-    if (!_isActive || _moveController.isAnimating) return;
+    if (!isActive || moveController.isAnimating) return;
     final oldDragExtent = _dragExtent;
 
     if (isScrollDelta && !_canConvertScrollDeltaToDragDelta) {
@@ -331,15 +342,15 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
       _updateMoveAnimation();
     }
 
-    if (!_moveController.isAnimating) {
-      _moveController.value = _dragExtent.abs() / _overallDragAxisExtent;
+    if (!moveController.isAnimating) {
+      moveController.value = _dragExtent.abs() / _overallDragAxisExtent;
     }
   }
 
   /// Updates the move animation based on the current drag extent and direction.
   void _updateMoveAnimation() {
     final end = _dragExtent.sign * widget.dragSensitivity;
-    _moveAnimation = _moveController.drive(
+    _moveAnimation = moveController.drive(
       Tween<Offset>(
         begin: Offset.zero,
         end: _directionIsXAxis ? Offset(end, 0) : Offset(0, end),
@@ -349,22 +360,22 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
 
   /// The dismiss threshold for the current dismiss direction.
   double get _dismissThreshold =>
-      widget.dismissThresholds[_dismissDirection] ?? _kDismissThreshold;
+      widget.dismissThresholds[_dismissDirection] ?? kDismissThreshold;
 
   /// Handles the end of a drag gesture.
   void _handleDragEnd([DragEndDetails? _]) {
-    if (!_isActive || _moveController.isAnimating) return;
-    _dragUnderway = false;
-    if (!_moveController.isDismissed) {
-      if (_moveController.value > _dismissThreshold) {
+    if (!isActive || moveController.isAnimating) return;
+    dragUnderway = false;
+    if (!moveController.isDismissed) {
+      if (moveController.value > _dismissThreshold) {
         DismissiblePageDragNotification(
           details: _details.copyWith(isDismissed: true),
         ).dispatch(context);
         widget.onDismissed.call();
       } else {
-        _moveController
+        moveController
           ..reverseDuration =
-              widget.reverseDuration * (1 / _moveController.value)
+              widget.reverseDuration * (1 / moveController.value)
           ..reverse();
         DismissiblePageDragNotification(
           details: _details,
@@ -395,7 +406,7 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
 
     if (hasScrollableContent && reachesOrCrossesOrigin) {
       _dragExtent = 0;
-      _moveController.value = 0;
+      moveController.value = 0;
       _updateMoveAnimation();
       return;
     }
@@ -493,7 +504,7 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
 
   /// Handles animation status changes for the dismiss animation.
   void _handleDismissStatusChanged(AnimationStatus status) {
-    if (status == AnimationStatus.completed && !_dragUnderway) {
+    if (status == AnimationStatus.completed && !dragUnderway) {
       DismissiblePageDragNotification(
         details: _details.copyWith(isDismissed: true),
       ).dispatch(context);
@@ -625,7 +636,7 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
               : null,
           behavior: widget.hitTestBehavior,
           dragStartBehavior: widget.dragStartBehavior,
-          child: _DismissiblePageListener(
+          child: DismissiblePageListener(
             onStart: (_) => _handleDragStart(),
             onUpdate: _handleDragUpdate,
             onEnd: _handleDragEnd,

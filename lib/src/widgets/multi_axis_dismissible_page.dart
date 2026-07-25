@@ -1,10 +1,22 @@
 // ignore_for_file: deprecated_member_use
 
-part of 'dismissible_page.dart';
+import 'dart:async';
+import 'dart:math';
+import 'dart:ui';
+
+import 'package:dismissible_page/dismissible_page_engine.dart';
+import 'package:dismissible_page/src/widgets/dismissible_page_builder.dart';
+import 'package:dismissible_page/src/widgets/dismissible_page_dismiss_direction.dart';
+import 'package:dismissible_page/src/widgets/dismissible_page_drag_update_details.dart';
+import 'package:dismissible_page/src/widgets/dismissible_page_helpers.dart';
+import 'package:dismissible_page/src/widgets/dismissible_page_interaction_mode.dart';
+import 'package:dismissible_page/src/widgets/dismissible_page_scroll_controller.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart';
 
 /// {@template multi_axis_dismissible_page}
-/// A specialized implementation of [DismissiblePage] that handles
-/// multi-directional dismissal gestures.
+/// A specialized dismissible page that handles multi-directional dismissal
+/// gestures.
 ///
 /// This widget allows users to dismiss content by dragging in any direction
 /// (horizontal or vertical). It provides smooth animations, gesture
@@ -137,7 +149,7 @@ class MultiAxisDismissiblePage extends StatefulWidget {
 }
 
 class _MultiAxisDismissiblePageState extends State<MultiAxisDismissiblePage>
-    with SingleTickerProviderStateMixin, _DismissiblePageMixin
+    with SingleTickerProviderStateMixin, DismissiblePageGestureMixin
     implements Drag {
   /// The gesture recognizer for handling multi-directional drags.
   late final GestureRecognizer _recognizer;
@@ -146,7 +158,7 @@ class _MultiAxisDismissiblePageState extends State<MultiAxisDismissiblePage>
   late final ValueNotifier<DismissiblePageDragUpdateDetails> _dragNotifier;
 
   /// Custom scroll controller for scroll-aware dismissal mode.
-  late final _DismissiblePageScrollController _scrollController;
+  late final DismissiblePageScrollController _scrollController;
 
   /// Default scroll controller for gesture-only mode.
   late final ScrollController _defaultScrollController;
@@ -168,15 +180,15 @@ class _MultiAxisDismissiblePageState extends State<MultiAxisDismissiblePage>
       opacity: widget.startingOpacity,
     );
     _dragNotifier = ValueNotifier(initialDetails);
-    _moveController = AnimationController(
+    moveController = AnimationController(
       duration: widget.reverseDuration,
       vsync: this,
     );
-    _moveController
+    moveController
       ..addStatusListener(statusListener)
       ..addListener(animationListener);
     _recognizer = widget.createRecognizer(_startDrag);
-    _scrollController = _DismissiblePageScrollController(
+    _scrollController = DismissiblePageScrollController(
       shouldConsumeUserOffset: _shouldConsumeUserOffset,
       onDismissDragStart: _handleScrollDragStart,
       onDismissDragUpdate: _handleScrollDragUpdate,
@@ -197,7 +209,7 @@ class _MultiAxisDismissiblePageState extends State<MultiAxisDismissiblePage>
     final offset = Offset.lerp(
       _dragNotifier.value.offset,
       Offset.zero,
-      Curves.easeInOut.transform(_moveController.value),
+      Curves.easeInOut.transform(moveController.value),
     )!;
     _updateOffset(offset);
   }
@@ -229,7 +241,7 @@ class _MultiAxisDismissiblePageState extends State<MultiAxisDismissiblePage>
   /// Status listener for the animation controller.
   void statusListener(AnimationStatus status) {
     if (status == AnimationStatus.completed) {
-      _moveController.value = 0;
+      moveController.value = 0;
     }
   }
 
@@ -250,8 +262,8 @@ class _MultiAxisDismissiblePageState extends State<MultiAxisDismissiblePage>
   /// Returns null if multiple pointers are active (multi-touch scenario).
   /// Otherwise, returns this object as the [Drag] handler.
   Drag? _startDrag(Offset position) {
-    if (_activePointerCount > 1) return null;
-    _dragUnderway = true;
+    if (activePointerCount > 1) return null;
+    dragUnderway = true;
     final renderObject = context.findRenderObject()! as RenderBox;
     _startOffset = renderObject.globalToLocal(position);
     return this;
@@ -259,14 +271,14 @@ class _MultiAxisDismissiblePageState extends State<MultiAxisDismissiblePage>
 
   /// Routes pointer events to the gesture recognizer.
   void _routePointer(PointerDownEvent event) {
-    if (_activePointerCount > 1) return;
+    if (activePointerCount > 1) return;
     _recognizer.addPointer(event);
   }
 
   /// Updates the drag position based on user input.
   @override
   void update(DragUpdateDetails details) {
-    if (_activePointerCount > 1) return;
+    if (activePointerCount > 1) return;
     _updateOffset(
       (details.globalPosition - _startOffset) * widget.dragSensitivity,
     );
@@ -274,24 +286,24 @@ class _MultiAxisDismissiblePageState extends State<MultiAxisDismissiblePage>
 
   /// Cancels the current drag operation.
   @override
-  void cancel() => _dragUnderway = false;
+  void cancel() => dragUnderway = false;
 
   /// Handles the end of a drag gesture.
   @override
   void end(DragEndDetails _) {
-    if (!_dragUnderway) return;
-    _dragUnderway = false;
+    if (!dragUnderway) return;
+    dragUnderway = false;
     final shouldDismiss =
         overallDrag() >
         (widget.dismissThresholds[DismissiblePageDismissDirection.multi] ??
-            _kDismissThreshold);
+            kDismissThreshold);
     if (shouldDismiss) {
       DismissiblePageDragNotification(
         details: _dragNotifier.value.copyWith(isDismissed: true),
       ).dispatch(context);
       widget.onDismissed();
     } else {
-      unawaited(_moveController.animateTo(1));
+      unawaited(moveController.animateTo(1));
       DismissiblePageDragNotification(
         details: _dragNotifier.value,
       ).dispatch(context);
@@ -301,7 +313,7 @@ class _MultiAxisDismissiblePageState extends State<MultiAxisDismissiblePage>
 
   /// Disposes the gesture recognizer if no pointers are active.
   void _disposeRecognizerIfInactive() {
-    if (_activePointerCount > 0) return;
+    if (activePointerCount > 0) return;
     _recognizer.dispose();
   }
 
@@ -310,14 +322,14 @@ class _MultiAxisDismissiblePageState extends State<MultiAxisDismissiblePage>
     _disposeRecognizerIfInactive();
     _scrollController.dispose();
     _defaultScrollController.dispose();
-    _moveController.dispose();
+    moveController.dispose();
     _dragNotifier.dispose();
     super.dispose();
   }
 
   /// Handles the start of a scroll-based drag operation.
   void _handleScrollDragStart() {
-    _dragUnderway = true;
+    dragUnderway = true;
     _scrollDragOffset = _dragNotifier.value.offset;
     widget.onDragStart?.call();
   }
@@ -348,17 +360,17 @@ class _MultiAxisDismissiblePageState extends State<MultiAxisDismissiblePage>
   /// Similar to [end], but specifically for scroll-initiated drags.
   /// Checks dismissal threshold and either dismisses or returns to origin.
   void _handleScrollDragEnd() {
-    // _dragUnderway = false;
+    // dragUnderway = false;
     // final shouldDismiss =
     //     overallDrag() >
     //     (widget.dismissThresholds[DismissiblePageDismissDirection.multi] ??
-    //         _kDismissThreshold);
+    //         kDismissThreshold);
     // if (shouldDismiss) {
     //   widget.onDismissed();
     //   return;
     // }
     // widget.onDragEnd?.call();
-    // unawaited(_moveController.animateTo(1));
+    // unawaited(moveController.animateTo(1));
   }
 
   /// Determines whether the scroll controller should consume user scroll input.
@@ -403,7 +415,6 @@ class _MultiAxisDismissiblePageState extends State<MultiAxisDismissiblePage>
       valueListenable: _dragNotifier,
       child: widget.builder(context, scrollController),
       builder: (_, details, child) {
-        dev.log('details.opacity: ${details.opacity}');
         final backgroundColor = switch ((
           widget.backgroundColor,
           widget.enableBackgroundOpacity,
@@ -454,7 +465,7 @@ class _MultiAxisDismissiblePageState extends State<MultiAxisDismissiblePage>
           ).dispatch(context);
         }
       },
-      child: _DismissiblePageListener(
+      child: DismissiblePageListener(
         parentState: this,
         onStart: _startDrag,
         onUpdate: update,

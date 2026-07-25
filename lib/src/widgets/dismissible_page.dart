@@ -1,29 +1,14 @@
-import 'dart:async';
-import 'dart:developer' as dev;
-import 'dart:math';
-import 'dart:ui';
-
-import 'package:flutter/cupertino.dart';
+import 'package:dismissible_page/dismissible_page_engine.dart';
+import 'package:dismissible_page/src/widgets/dismissible_page_builder.dart';
+import 'package:dismissible_page/src/widgets/dismissible_page_dismiss_direction.dart';
+import 'package:dismissible_page/src/widgets/dismissible_page_drag_update_details.dart';
+import 'package:dismissible_page/src/widgets/dismissible_page_interaction_mode.dart';
+import 'package:dismissible_page/src/widgets/multi_axis_dismissible_page.dart';
+import 'package:dismissible_page/src/widgets/single_axis_dismissible_page.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
-part 'dismissible_extensions.dart';
-part 'dismissible_page_dismiss_direction.dart';
-part 'dismissible_page_drag_update_details.dart';
-part 'dismissible_page_helpers.dart';
-part 'dismissible_page_interaction_mode.dart';
-part 'dismissible_page_scroll_controller.dart';
-part 'multi_axis_dismissible_page.dart';
-part 'single_axis_dismissible_page.dart';
-part 'dismissible_routes.dart';
-
-const double _kDismissThreshold = 0.15;
-
-/// {@template dismissible_page_builder}
-/// Builder that receives a [ScrollController] for scroll-aware mode.
-/// {@endtemplate}
-typedef DismissiblePageBuilder =
-    Widget Function(BuildContext context, ScrollController scrollController);
+export 'dismissible_page_builder.dart';
 
 /// {@template dismissible_page}
 /// Flutter widget that allows you to dismiss page to any direction, forget the
@@ -124,7 +109,7 @@ class DismissiblePage extends StatelessWidget {
   final DismissiblePageDismissDirection direction;
 
   /// The offset threshold the item has to be dragged in order to be considered
-  /// dismissed. default is [_kDismissThreshold], value (0.0 - 1.0)
+  /// dismissed. default is [kDismissThreshold], value (0.0 - 1.0)
   final Map<DismissiblePageDismissDirection, double> dismissThresholds;
 
   /// Represents how much responsive dragging the widget will be

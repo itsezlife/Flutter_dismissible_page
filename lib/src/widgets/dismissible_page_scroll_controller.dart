@@ -1,30 +1,47 @@
-part of 'dismissible_page.dart';
+import 'package:dismissible_page/src/widgets/dismissible_page_drag_update_details.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 
-typedef _ShouldConsumeUserOffset =
+/// Whether a user scroll [delta] should be consumed as page dismissal.
+@internal
+typedef ShouldConsumeUserOffset =
     bool Function(double delta, ScrollPosition position);
-typedef _HandleDismissOffset =
+
+/// Applies a dismiss drag [delta] from scroll input.
+@internal
+typedef HandleDismissOffset =
     void Function(double delta, ScrollPosition position);
 
-class _DismissiblePageScrollController extends ScrollController {
-  _DismissiblePageScrollController({
+/// Package-internal scroll controller that arbitrates dismiss vs inner scroll.
+@internal
+class DismissiblePageScrollController extends ScrollController {
+  /// Creates a [DismissiblePageScrollController].
+  DismissiblePageScrollController({
     required this.shouldConsumeUserOffset,
     required this.onDismissDragStart,
     required this.onDismissDragUpdate,
     required this.onDismissDragEnd,
   });
 
-  final _ShouldConsumeUserOffset shouldConsumeUserOffset;
+  /// Whether a user scroll delta should be consumed as dismissal.
+  final ShouldConsumeUserOffset shouldConsumeUserOffset;
+
+  /// Called when a dismiss drag starts from scroll input.
   final VoidCallback onDismissDragStart;
-  final _HandleDismissOffset onDismissDragUpdate;
+
+  /// Called when a dismiss drag updates from scroll input.
+  final HandleDismissOffset onDismissDragUpdate;
+
+  /// Called when a dismiss drag ends from scroll input.
   final VoidCallback onDismissDragEnd;
 
   @override
-  _DismissiblePageScrollPosition createScrollPosition(
+  DismissiblePageScrollPosition createScrollPosition(
     ScrollPhysics physics,
     ScrollContext context,
     ScrollPosition? oldPosition,
   ) {
-    return _DismissiblePageScrollPosition(
+    return DismissiblePageScrollPosition(
       physics: physics.applyTo(const AlwaysScrollableScrollPhysics()),
       context: context,
       oldPosition: oldPosition,
@@ -36,12 +53,15 @@ class _DismissiblePageScrollController extends ScrollController {
   }
 
   @override
-  _DismissiblePageScrollPosition get position =>
-      super.position as _DismissiblePageScrollPosition;
+  DismissiblePageScrollPosition get position =>
+      super.position as DismissiblePageScrollPosition;
 }
 
-class _DismissiblePageScrollPosition extends ScrollPositionWithSingleContext {
-  _DismissiblePageScrollPosition({
+/// Package-internal scroll position used by [DismissiblePageScrollController].
+@internal
+class DismissiblePageScrollPosition extends ScrollPositionWithSingleContext {
+  /// Creates a [DismissiblePageScrollPosition].
+  DismissiblePageScrollPosition({
     required super.physics,
     required super.context,
     required this.shouldConsumeUserOffset,
@@ -51,12 +71,22 @@ class _DismissiblePageScrollPosition extends ScrollPositionWithSingleContext {
     super.oldPosition,
   });
 
-  final _ShouldConsumeUserOffset shouldConsumeUserOffset;
+  /// Whether a user scroll delta should be consumed as dismissal.
+  final ShouldConsumeUserOffset shouldConsumeUserOffset;
+
+  /// Called when a dismiss drag starts from scroll input.
   final VoidCallback onDismissDragStart;
-  final _HandleDismissOffset onDismissDragUpdate;
+
+  /// Called when a dismiss drag updates from scroll input.
+  final HandleDismissOffset onDismissDragUpdate;
+
+  /// Called when a dismiss drag ends from scroll input.
   final VoidCallback onDismissDragEnd;
 
+  /// Whether the list has scrolled past the origin.
   bool get listShouldScroll => pixels > 0;
+
+  /// Whether the list should scroll given [delta].
   bool deltaAwareListShouldScroll(double delta) =>
       listShouldScroll && delta > 0;
 
@@ -96,8 +126,8 @@ class _DismissiblePageScrollPosition extends ScrollPositionWithSingleContext {
 }
 
 /// {@template dismissible_page_drag_notification}
-/// A [Notification] related to the drag of a [DismissiblePage], which
-/// will be dispatched to the [NotificationListener].
+/// A [Notification] related to a dismissible page drag, which will be
+/// dispatched to the [NotificationListener].
 /// {@endtemplate}
 class DismissiblePageDragNotification extends Notification
     with ViewportNotificationMixin {

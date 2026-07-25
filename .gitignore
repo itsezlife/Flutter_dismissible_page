@@ -10,6 +10,16 @@
 .svn/
 .fvm/
 
+# Agent / local scratch
+.scratch/
+AGENTS.md
+docs/agents/
+CONTEXT.md
+
+# Cursor
+.cursor/
+
+
 # IntelliJ related
 *.iml
 *.ipr

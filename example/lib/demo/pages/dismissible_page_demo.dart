@@ -1,4 +1,3 @@
-import 'dart:developer' as dev;
 import 'dart:math';
 
 import 'package:dismissible_page/dismissible_page.dart';
@@ -321,7 +320,6 @@ class DismissibleDemo extends StatelessWidget {
   Widget build(BuildContext context) {
     return DismissiblePage(
       onDismissed: () {
-        dev.log('onDismissed');
         Navigator.of(context).maybePop();
       },
       interactionMode: interactionMode,
@@ -340,9 +338,6 @@ class DismissibleDemo extends StatelessWidget {
       hitTestBehavior: pageModel.behavior,
       reverseDuration: pageModel.reverseDuration,
       minOpacity: minOpacity,
-      // onDragStart: () => dev.log('onDragStart'),
-      // onDragUpdate: (d) => dev.log('onDragUpdate: ${d.offset.dy}'),
-      // onDragEnd: () => dev.log('onDragEnd'),
       builder: builder,
     );
   }

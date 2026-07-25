@@ -1,11 +1,9 @@
-// ignore_for_file: deprecated_member_use
-
 import 'dart:async';
 import 'dart:math';
-import 'dart:ui';
 
 import 'package:dismissible_page/dismissible_page_engine.dart';
 import 'package:dismissible_page/src/widgets/dismissible_page_builder.dart';
+import 'package:dismissible_page/src/widgets/dismissible_page_chrome.dart';
 import 'package:dismissible_page/src/widgets/dismissible_page_dismiss_direction.dart';
 import 'package:dismissible_page/src/widgets/dismissible_page_drag_update_details.dart';
 import 'package:dismissible_page/src/widgets/dismissible_page_helpers.dart';
@@ -172,12 +170,29 @@ class _MultiAxisDismissiblePageState extends State<MultiAxisDismissiblePage>
   /// The screen size, used for calculating drag percentages.
   late final Size _screenSize = MediaQuery.sizeOf(context);
 
+  DragPresentationConfig get _presentationConfig => DragPresentationConfig(
+    minRadius: widget.minRadius,
+    maxRadius: widget.maxRadius,
+    minScale: widget.minScale,
+    startingOpacity: widget.startingOpacity,
+    minOpacity: widget.minOpacity,
+  );
+
+  DismissiblePageDragUpdateDetails _detailsFor(DragPresentation presentation) {
+    return DismissiblePageDragUpdateDetails(
+      offset: presentation.offset,
+      overallDragValue: presentation.progress,
+      radius: presentation.radius,
+      opacity: presentation.opacity,
+      scale: presentation.scale,
+    );
+  }
+
   @override
   void initState() {
     super.initState();
-    final initialDetails = DismissiblePageDragUpdateDetails(
-      radius: widget.minRadius,
-      opacity: widget.startingOpacity,
+    final initialDetails = _detailsFor(
+      _presentationConfig.map(progress: 0, offset: Offset.zero),
     );
     _dragNotifier = ValueNotifier(initialDetails);
     moveController = AnimationController(
@@ -216,17 +231,8 @@ class _MultiAxisDismissiblePageState extends State<MultiAxisDismissiblePage>
 
   /// Updates the current drag offset and recalculates all visual properties.
   void _updateOffset(Offset offset) {
-    final k = overallDrag(offset);
-    _dragNotifier.value = DismissiblePageDragUpdateDetails(
-      offset: offset,
-      overallDragValue: k,
-      radius: lerpDouble(widget.minRadius, widget.maxRadius, k)!,
-      opacity: lerpDouble(
-        widget.startingOpacity,
-        widget.minOpacity,
-        k,
-      )!.clamp(widget.minOpacity, 1.0),
-      scale: lerpDouble(1, widget.minScale, k)!,
+    _dragNotifier.value = _detailsFor(
+      _presentationConfig.map(progress: overallDrag(offset), offset: offset),
     );
   }
 
@@ -411,36 +417,22 @@ class _MultiAxisDismissiblePageState extends State<MultiAxisDismissiblePage>
         widget.interactionMode == DismissiblePageInteractionMode.scroll
         ? _scrollController
         : _defaultScrollController;
-    final content = ValueListenableBuilder<DismissiblePageDragUpdateDetails>(
+    final content = ValueListenableBuilder(
       valueListenable: _dragNotifier,
       child: widget.builder(context, scrollController),
       builder: (_, details, child) {
-        final backgroundColor = switch ((
-          widget.backgroundColor,
-          widget.enableBackgroundOpacity,
-        )) {
-          (final color?, _) when color == Colors.transparent => color,
-          (final color?, true) => color.withValues(alpha: details.opacity),
-          (final color, _) => color,
-        };
-
-        Widget content = Transform(
-          transform: Matrix4.identity()
-            ..translate(details.offset.dx, details.offset.dy)
-            ..scale(details.scale, details.scale),
-          child: ClipRRect(
-            borderRadius: BorderRadius.all(Radius.circular(details.radius)),
-            child: child,
+        return DismissiblePageChrome(
+          presentation: DragPresentation(
+            progress: details.overallDragValue,
+            offset: details.offset,
+            radius: details.radius,
+            opacity: details.opacity,
+            scale: details.scale,
           ),
-        );
-
-        if (backgroundColor case final backgroundColor?) {
-          content = ColoredBox(color: backgroundColor, child: content);
-        }
-
-        return Padding(
-          padding: widget.contentPadding,
-          child: content,
+          backgroundColor: widget.backgroundColor,
+          enableBackgroundOpacity: widget.enableBackgroundOpacity,
+          contentPadding: widget.contentPadding,
+          child: child!,
         );
       },
     );

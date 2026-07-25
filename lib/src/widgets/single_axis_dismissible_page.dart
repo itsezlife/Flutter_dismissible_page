@@ -1,7 +1,6 @@
 // ignore_for_file: discarded_futures
 
 import 'dart:math';
-import 'dart:ui';
 
 import 'package:dismissible_page/dismissible_page_engine.dart';
 import 'package:dismissible_page/src/widgets/dismissible_page_builder.dart';
@@ -199,16 +198,29 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
     setState(() {});
   }
 
+  DragPresentationConfig get _presentationConfig => DragPresentationConfig(
+    minRadius: widget.minRadius,
+    maxRadius: widget.maxRadius,
+    minScale: widget.minScale,
+    startingOpacity: widget.startingOpacity,
+    minOpacity: widget.minOpacity,
+  );
+
+  DragPresentation get _presentation => _presentationConfig.map(
+    progress: _dragValue.clamp(0.0, 1.0),
+    offset: _offset,
+  );
+
   DismissiblePageDragUpdateDetails get _details =>
       DismissiblePageDragUpdateDetails(
         overallDragValue: min(
           _dragExtent / _overallDragAxisExtent,
           widget.maxTransformValue,
         ),
-        radius: _radius,
-        opacity: _opacity,
-        offset: _offset,
-        scale: _scale ?? 0.0,
+        radius: _presentation.radius,
+        opacity: _presentation.opacity,
+        offset: _presentation.offset,
+        scale: _presentation.scale,
       );
 
   /// Animation listener that triggers drag update callbacks.
@@ -544,20 +556,6 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
   /// The current offset for the transform, combining X and Y components.
   Offset get _offset => Offset(_getDx, _getDy);
 
-  /// The current scale factor, interpolated based on drag progress.
-  double? get _scale => lerpDouble(1, widget.minScale, _dragValue);
-
-  /// The current border radius, interpolated based on drag progress.
-  double get _radius =>
-      lerpDouble(widget.minRadius, widget.maxRadius, _dragValue)!;
-
-  /// The current opacity, calculated based on drag progress.
-  double get _opacity => lerpDouble(
-    widget.startingOpacity,
-    widget.minOpacity,
-    _dragValue,
-  )!.clamp(widget.minOpacity, 1.0);
-
   @override
   Widget build(BuildContext context) {
     final scrollController =
@@ -577,21 +575,25 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
         final animatedChild = AnimatedBuilder(
           animation: _moveAnimation,
           builder: (context, child) {
+            final presentation = _presentation;
             final backgroundColor = switch ((
               widget.backgroundColor,
               widget.enableBackgroundOpacity,
             )) {
               (final color?, _) when color == Colors.transparent => color,
-              (final color?, true) => color.withValues(alpha: _opacity),
+              (final color?, true) =>
+                color.withValues(alpha: presentation.opacity),
               (final color, _) => color,
             };
 
             Widget content = FractionalTranslation(
-              translation: _offset,
+              translation: presentation.offset,
               child: Transform.scale(
-                scale: _scale ?? 0,
+                scale: presentation.scale,
                 child: ClipRRect(
-                  borderRadius: BorderRadius.all(Radius.circular(_radius)),
+                  borderRadius: BorderRadius.all(
+                    Radius.circular(presentation.radius),
+                  ),
                   child: child,
                 ),
               ),

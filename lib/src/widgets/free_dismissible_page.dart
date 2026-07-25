@@ -10,17 +10,17 @@ import 'package:dismissible_page/src/widgets/dismissible_page_scroll_controller.
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
-/// {@template constrained_dismissible_page}
-/// A dismissible page whose motion is Constrained Motion: each gesture locks
-/// onto a single [Axis] (chosen by the dominant delta) and then moves only
-/// along that axis and only toward sides permitted by [directions].
+/// {@template free_dismissible_page}
+/// A dismissible page whose motion is Free Motion: the gesture moves the page
+/// in the full plane (2D) without Axis Lock, and a single [threshold]
+/// decides whether the gesture dismisses or reverses.
 ///
-/// This is the public Constrained variant of the sealed page API. It wires the
-/// Dismiss Engine (Axis Lock, [AxisLock], [DismissThresholds],
-/// [DragPresentationConfig], and Scroll Arbitration) to a
-/// thin gesture/scroll adapter and the shared [DismissiblePageChrome]; it owns
-/// no domain rules of its own. See
-/// [ConstrainedMotionDirections.resolveAxisLock].
+/// This is the public Free variant of the sealed page API. It wires the
+/// Dismiss Engine ([FreeMotion], [DragPresentationConfig], and Free Motion
+/// Scroll Arbitration via [ScrollExtentMetrics.shouldConsumeFreeScrollDelta])
+/// to a thin gesture/scroll adapter and the shared [DismissiblePageChrome];
+/// it owns no domain rules of its own. Free Motion is independent of Dismiss
+/// Directions combinatorics, so this widget has no directions parameter.
 ///
 /// [interactionMode] is orthogonal to motion:
 /// - [DismissiblePageInteractionMode.scroll] (default) coordinates dismissal
@@ -28,19 +28,13 @@ import 'package:flutter/material.dart';
 ///   [builder].
 /// - [DismissiblePageInteractionMode.gesture] handles content that never
 ///   scrolls with a direct drag recognizer.
-///
-/// An empty [directions] set or [disabled] both make the page
-/// non-dismissible; [disabled] is the motion-agnostic switch shared with the
-/// Free variant, while an empty set is the degenerate Constrained
-/// configuration.
 /// {@endtemplate}
-class ConstrainedDismissiblePage extends StatefulWidget {
-  /// {@macro constrained_dismissible_page}
-  const ConstrainedDismissiblePage({
+class FreeDismissiblePage extends StatefulWidget {
+  /// {@macro free_dismissible_page}
+  const FreeDismissiblePage({
     required this.builder,
     required this.onDismissed,
-    this.directions = DismissDirections.vertical,
-    this.thresholds = const DismissThresholds(),
+    this.threshold = kDismissThreshold,
     this.interactionMode = DismissiblePageInteractionMode.scroll,
     this.disabled = false,
     this.onDragStart,
@@ -61,7 +55,10 @@ class ConstrainedDismissiblePage extends StatefulWidget {
     this.reverseCurve = Curves.easeInOut,
     this.hitTestBehavior = HitTestBehavior.opaque,
     super.key,
-  });
+  }) : assert(
+         threshold >= 0 && threshold <= 1,
+         'threshold must be between 0 and 1',
+       );
 
   /// Builds the content to dismiss.
   ///
@@ -70,14 +67,11 @@ class ConstrainedDismissiblePage extends StatefulWidget {
   /// [DismissiblePageInteractionMode.scroll].
   final DismissiblePageBuilder builder;
 
-  /// Called when a gesture crosses the permitted side's Dismiss Threshold.
+  /// Called when the free-plane gesture crosses [threshold].
   final VoidCallback onDismissed;
 
-  /// The sides that may complete a dismissal. An empty set disables drag.
-  final DismissDirections directions;
-
-  /// Per-atomic-side progress thresholds for the locked side.
-  final DismissThresholds thresholds;
+  /// The single Dismiss Threshold (0.0–1.0) for the free-plane gesture.
+  final double threshold;
 
   /// How dismissal is coordinated with nested scrolling.
   final DismissiblePageInteractionMode interactionMode;
@@ -115,7 +109,7 @@ class ConstrainedDismissiblePage extends StatefulWidget {
   /// Border radius at full drag progress.
   final double maxRadius;
 
-  /// Maximum translation as a fraction of the axis extent (0.0–1.0).
+  /// Maximum translation as a fraction of each axis extent (0.0–1.0).
   final double maxTransformValue;
 
   /// Background opacity at rest.
@@ -137,11 +131,10 @@ class ConstrainedDismissiblePage extends StatefulWidget {
   final HitTestBehavior hitTestBehavior;
 
   @override
-  State<ConstrainedDismissiblePage> createState() =>
-      _ConstrainedDismissiblePageState();
+  State<FreeDismissiblePage> createState() => _FreeDismissiblePageState();
 }
 
-class _ConstrainedDismissiblePageState extends State<ConstrainedDismissiblePage>
+class _FreeDismissiblePageState extends State<FreeDismissiblePage>
     with SingleTickerProviderStateMixin {
   static const double _kOriginEpsilon = 1e-6;
 
@@ -150,29 +143,24 @@ class _ConstrainedDismissiblePageState extends State<ConstrainedDismissiblePage>
   late final AnimationController _settleController;
   late final ValueNotifier<DismissiblePageDragUpdateDetails> _dragNotifier;
 
-  late final TextDirection _textDirection = Directionality.of(context);
   late final Size _screenSize = MediaQuery.sizeOf(context);
 
-  /// The axis/side locked for the active gesture, or null before a lock.
-  AxisLock? _lock;
+  /// Accumulated free-plane drag offset in pixels.
+  Offset _dragOffset = Offset.zero;
 
-  /// Accumulated drag distance in pixels along the locked axis.
-  double _dragExtent = 0;
-
-  /// Drag extent captured when a reverse settle begins.
-  double _settleFrom = 0;
+  /// Drag offset captured when a reverse settle begins.
+  Offset _settleFrom = Offset.zero;
 
   bool _dragUnderway = false;
   bool _canInnerContentScroll = false;
 
-  bool get _dismissEnabled =>
-      !widget.disabled && widget.directions.allowsDragDismissal;
+  bool get _dismissEnabled => !widget.disabled;
 
   @override
   void initState() {
     super.initState();
-    // Resting details must not read MediaQuery/Directionality — those
-    // inherited lookups are illegal until after initState completes.
+    // Resting details must not read MediaQuery — that inherited lookup is
+    // illegal until after initState completes.
     _dragNotifier = ValueNotifier(
       DismissiblePageDragUpdateDetails(
         radius: widget.minRadius,
@@ -195,7 +183,7 @@ class _ConstrainedDismissiblePageState extends State<ConstrainedDismissiblePage>
       DismissiblePageDragNotification(
         details: _dragNotifier.value,
       ).dispatch(context);
-    }, debugLabel: 'ConstrainedDismissiblePage.postFrame');
+    }, debugLabel: 'FreeDismissiblePage.postFrame');
   }
 
   @override
@@ -232,35 +220,26 @@ class _ConstrainedDismissiblePageState extends State<ConstrainedDismissiblePage>
         minOpacity: widget.minOpacity,
       );
 
-  Axis get _axis => _lock?.axis ?? Axis.vertical;
-
-  double get _axisExtent => switch (_axis) {
-    Axis.horizontal => _screenSize.width,
-    Axis.vertical => _screenSize.height,
-  };
-
-  /// Raw drag progress along the locked axis (0.0–1.0), the value compared
-  /// against the Dismiss Threshold.
-  double get _progress =>
-      _axisExtent == 0 ? 0 : (_dragExtent.abs() / _axisExtent).clamp(0.0, 1.0);
-
-  DismissiblePageDragUpdateDetails _detailsForExtent(double extent) {
-    final axisExtent = _axisExtent;
-    final progress = axisExtent == 0
+  DismissiblePageDragUpdateDetails _detailsForOffset(Offset offset) {
+    final progress = FreeMotion(offset).progressIn(_screenSize);
+    final horizontalFraction = _screenSize.width == 0
         ? 0.0
-        : (extent.abs() / axisExtent).clamp(0.0, 1.0);
-    final translationFraction = (extent / axisExtent * widget.dragSensitivity)
-        .clamp(
-          -widget.maxTransformValue,
-          widget.maxTransformValue,
-        );
-    final offset = switch (_axis) {
-      Axis.horizontal => Offset(translationFraction * _screenSize.width, 0),
-      Axis.vertical => Offset(0, translationFraction * _screenSize.height),
-    };
+        : (offset.dx / _screenSize.width * widget.dragSensitivity).clamp(
+            -widget.maxTransformValue,
+            widget.maxTransformValue,
+          );
+    final verticalFraction = _screenSize.height == 0
+        ? 0.0
+        : (offset.dy / _screenSize.height * widget.dragSensitivity).clamp(
+            -widget.maxTransformValue,
+            widget.maxTransformValue,
+          );
     final presentation = _presentationConfig.map(
       progress: (progress * widget.dragSensitivity).clamp(0.0, 1.0),
-      offset: offset,
+      offset: Offset(
+        horizontalFraction * _screenSize.width,
+        verticalFraction * _screenSize.height,
+      ),
     );
     return DismissiblePageDragUpdateDetails(
       overallDragValue: min(progress, widget.maxTransformValue),
@@ -272,11 +251,11 @@ class _ConstrainedDismissiblePageState extends State<ConstrainedDismissiblePage>
   }
 
   /// Pushes a new chrome frame without rebuilding the State subtree.
-  void _publishExtent(double extent) {
-    _dragExtent = extent;
-
+  void _publishOffset(Offset offset) {
+    _dragOffset = offset;
     if (!mounted) return;
-    _dragNotifier.value = _detailsForExtent(extent);
+
+    _dragNotifier.value = _detailsForOffset(offset);
   }
 
   void _dragListener() {
@@ -295,43 +274,32 @@ class _ConstrainedDismissiblePageState extends State<ConstrainedDismissiblePage>
     if (_settleController.isAnimating) {
       _settleController.stop();
     } else {
-      _publishExtent(0);
-      _lock = null;
+      _publishOffset(Offset.zero);
     }
   }
 
   void _applyDelta(Offset delta) {
     if (!_dragUnderway || _settleController.isAnimating) return;
-    final lock = _lock ??= widget.directions.resolveAxisLock(
-      delta: delta,
-      textDirection: _textDirection,
-    );
-    if (lock == null) return;
+    if (delta == Offset.zero) return;
 
-    // The engine projects the delta onto the locked axis and discards
-    // cross-axis and opposite-side movement, keeping this adapter thin.
-    final projected = lock.constrain(delta);
-    final axisDelta = switch (lock.axis) {
-      Axis.horizontal => projected.dx,
-      Axis.vertical => projected.dy,
-    };
-    if (axisDelta == 0) return;
-
-    _publishExtent(_dragExtent + axisDelta);
+    _publishOffset(_dragOffset + delta);
   }
 
   void _handleDragEnd([DragEndDetails? _]) {
     if (!_dragUnderway) return;
     _dragUnderway = false;
-    final lock = _lock;
-    if (lock == null || _dragExtent == 0) return;
+    if (_dragOffset == Offset.zero) return;
 
-    switch (lock.decide(progress: _progress, thresholds: widget.thresholds)) {
+    final decision = FreeMotion(_dragOffset).decide(
+      bounds: _screenSize,
+      threshold: widget.threshold,
+    );
+    switch (decision) {
       case DismissDecision.dismiss:
         _dispatchDismissed();
         widget.onDismissed();
       case DismissDecision.reverse:
-        _settleFrom = _dragExtent;
+        _settleFrom = _dragOffset;
         unawaited(_settleController.forward(from: 0));
         widget.onDragEnd?.call();
     }
@@ -339,15 +307,14 @@ class _ConstrainedDismissiblePageState extends State<ConstrainedDismissiblePage>
 
   void _handleSettleTick() {
     final t = widget.reverseCurve.transform(_settleController.value);
-    _publishExtent(_settleFrom * (1 - t));
+    _publishOffset(Offset.lerp(_settleFrom, Offset.zero, t)!);
   }
 
   void _handleSettleStatus(AnimationStatus status) {
     if (status != AnimationStatus.completed) return;
 
     if (mounted) _settleController.value = 0;
-    _publishExtent(0);
-    _lock = null;
+    _publishOffset(Offset.zero);
   }
 
   void _dispatchDismissed() {
@@ -366,16 +333,24 @@ class _ConstrainedDismissiblePageState extends State<ConstrainedDismissiblePage>
       Axis.vertical => Offset(0, delta),
       Axis.horizontal => Offset(delta, 0),
     };
+    final axisOffset = switch (scrollAxis) {
+      Axis.horizontal => _dragOffset.dx,
+      Axis.vertical => _dragOffset.dy,
+    };
 
     final hasScrollableContent =
         (position.maxScrollExtent - position.minScrollExtent).abs() >
         _kOriginEpsilon;
-    final isReturning = _dragExtent != 0 && _isDeltaReturningToOrigin(delta2D);
+    final isReturning =
+        (axisOffset > 0 && delta < 0) || (axisOffset < 0 && delta > 0);
     final reachesOrigin =
-        isReturning && (delta.abs() + _kOriginEpsilon >= _dragExtent.abs());
+        isReturning && (delta.abs() + _kOriginEpsilon >= axisOffset.abs());
 
     if (hasScrollableContent && reachesOrigin) {
-      _publishExtent(0);
+      _publishOffset(switch (scrollAxis) {
+        Axis.horizontal => Offset(0, _dragOffset.dy),
+        Axis.vertical => Offset(_dragOffset.dx, 0),
+      });
       return;
     }
 
@@ -384,35 +359,16 @@ class _ConstrainedDismissiblePageState extends State<ConstrainedDismissiblePage>
 
   void _handleScrollDragEnd() => _handleDragEnd();
 
-  bool _isDeltaReturningToOrigin(Offset delta) {
-    final lock = _lock;
-    if (lock == null) return false;
-    final axisDelta = switch (lock.axis) {
-      Axis.horizontal => delta.dx,
-      Axis.vertical => delta.dy,
-    };
-    return (_dragExtent > 0 && axisDelta < 0) ||
-        (_dragExtent < 0 && axisDelta > 0);
-  }
-
   bool _shouldConsumeUserOffset(double delta, ScrollPosition position) {
     if (!_dismissEnabled) return false;
-    final scrollAxis = axisDirectionToAxis(position.axisDirection);
-    final delta2D = switch (scrollAxis) {
-      Axis.vertical => Offset(0, delta),
-      Axis.horizontal => Offset(delta, 0),
-    };
 
-    // Keep consuming while the page returns toward origin so inner content
-    // does not start scrolling prematurely.
-    if (_dragExtent != 0 && _isDeltaReturningToOrigin(delta2D)) return true;
+    // Keep consuming while the page is displaced so inner content does not
+    // start scrolling mid-dismissal.
+    if (_dragOffset != Offset.zero) return true;
 
-    return widget.directions.shouldConsumeScrollDelta(
-      delta: delta,
-      metrics: ScrollExtentMetrics.fromScrollMetrics(position),
-      scrollAxis: scrollAxis,
-      textDirection: _textDirection,
-    );
+    return ScrollExtentMetrics.fromScrollMetrics(
+      position,
+    ).shouldConsumeFreeScrollDelta(delta);
   }
 
   // --- Build --------------------------------------------------------------

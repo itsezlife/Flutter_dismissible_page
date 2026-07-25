@@ -125,6 +125,17 @@ void main() {
       );
     });
 
+    test('free motion consumes at either boundary without a side filter', () {
+      // Positive deltas (drag toward min) consume only at the min extent.
+      expect(atMin.shouldConsumeFreeScrollDelta(4), isTrue);
+      expect(range.shouldConsumeFreeScrollDelta(4), isFalse);
+      // Negative deltas consume only at the max extent.
+      expect(atMax.shouldConsumeFreeScrollDelta(-4), isTrue);
+      expect(range.shouldConsumeFreeScrollDelta(-4), isFalse);
+      // No movement never consumes.
+      expect(atMin.shouldConsumeFreeScrollDelta(0), isFalse);
+    });
+
     test('targets only deltas toward an allowed atomic side', () {
       expect(
         DismissDirections.down.targetsPermittedDismissSide(

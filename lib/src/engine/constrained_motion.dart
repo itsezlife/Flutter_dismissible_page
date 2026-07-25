@@ -2,7 +2,10 @@ import 'package:dismissible_page/src/engine/dismiss_constants.dart';
 import 'package:dismissible_page/src/engine/dismiss_directions.dart';
 import 'package:flutter/widgets.dart';
 
-/// The settle action selected when a Constrained gesture ends.
+/// The settle action selected when a dismiss gesture ends.
+///
+/// Shared by Constrained and Free Motion: Constrained decides via
+/// [AxisLock.decide]; Free Motion decides via `FreeMotion.decide`.
 enum DismissDecision {
   /// Complete the dismissal.
   dismiss,

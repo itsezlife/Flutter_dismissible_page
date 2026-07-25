@@ -1,5 +1,4 @@
 import 'package:dismissible_page/src/engine/dismiss_directions.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 /// Nested scrollable extents consulted by Scroll Arbitration.
@@ -34,6 +33,17 @@ final class ScrollExtentMetrics {
 
   /// Whether [pixels] is at or beyond the maximum extent.
   bool get isAtMaxExtent => pixels >= maxScrollExtent;
+
+  /// Whether [delta] should be consumed as Free Motion dismissal instead of
+  /// inner scroll.
+  ///
+  /// Free Motion has no Dismiss Directions filter: any [delta] the nested
+  /// scrollable cannot consume at its boundary becomes dismissal movement.
+  /// [delta] is in scroll-space (`ScrollPosition.applyUserOffset` units).
+  bool shouldConsumeFreeScrollDelta(double delta) {
+    if (delta == 0) return false;
+    return delta > 0 ? isAtMinExtent : isAtMaxExtent;
+  }
 
   @override
   bool operator ==(Object other) =>

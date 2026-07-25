@@ -1,32 +1,30 @@
 import 'package:dismissible_page/dismissible_page.dart';
-import 'package:dismissible_page/dismissible_page_engine.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  /// Thin widget tests for the public [ConstrainedDismissiblePage] seam.
+  /// Thin widget tests for the public [FreeDismissiblePage] seam.
   ///
-  /// These cover wiring only — variant/direction selection, disabled, scroll
-  /// controller attachment, interaction modes, and the externally observable
-  /// dismiss-vs-reverse outcome. Engine edge cases (axis-lock tables,
-  /// per-side thresholds, arbitration boundaries) live in the engine unit
-  /// tests and are not re-encoded here.
+  /// These cover wiring only — variant exposure, disabled, scroll controller
+  /// attachment, interaction modes, and the externally observable
+  /// dismiss-vs-reverse outcome. Free Motion math (progress, single-threshold
+  /// decision, arbitration boundaries) lives in the engine unit tests and is
+  /// not re-encoded here.
   Widget wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
 
-  testWidgets('exposes ConstrainedDismissiblePage with Dismiss Directions', (
+  testWidgets('exposes FreeDismissiblePage without Dismiss Directions', (
     tester,
   ) async {
     await tester.pumpWidget(
       wrap(
-        ConstrainedDismissiblePage(
-          directions: DismissDirections.horizontal,
+        FreeDismissiblePage(
           onDismissed: () {},
           builder: (context, controller) => const FlutterLogo(),
         ),
       ),
     );
 
-    expect(find.byType(ConstrainedDismissiblePage), findsOneWidget);
+    expect(find.byType(FreeDismissiblePage), findsOneWidget);
   });
 
   testWidgets('scroll mode is the default and supplies a ScrollController', (
@@ -36,7 +34,7 @@ void main() {
 
     await tester.pumpWidget(
       wrap(
-        ConstrainedDismissiblePage(
+        FreeDismissiblePage(
           onDismissed: () {},
           builder: (context, controller) {
             provided = controller;
@@ -54,7 +52,7 @@ void main() {
     expect(provided?.hasClients, isTrue);
   });
 
-  testWidgets('gesture mode dismisses non-scrollable content past threshold', (
+  testWidgets('gesture mode dismisses a free-plane drag past the threshold', (
     tester,
   ) async {
     var dismissed = false;
@@ -62,7 +60,7 @@ void main() {
 
     await tester.pumpWidget(
       wrap(
-        ConstrainedDismissiblePage(
+        FreeDismissiblePage(
           interactionMode: DismissiblePageInteractionMode.gesture,
           onDismissed: () => dismissed = true,
           onDragEnd: () => dragEnded = true,
@@ -71,11 +69,11 @@ void main() {
       ),
     );
 
-    // Screen is 600 tall; 200px down is ~0.33 progress, well past the
-    // default 0.15 threshold for the down side.
+    // A diagonal drag: 150 / 600 = 0.25 vertically dominates and is well
+    // past the default 0.15 threshold. No Axis Lock filters it out.
     await tester.drag(
-      find.byType(ConstrainedDismissiblePage),
-      const Offset(0, 200),
+      find.byType(FreeDismissiblePage),
+      const Offset(100, 150),
     );
     await tester.pumpAndSettle();
 
@@ -91,7 +89,7 @@ void main() {
 
     await tester.pumpWidget(
       wrap(
-        ConstrainedDismissiblePage(
+        FreeDismissiblePage(
           interactionMode: DismissiblePageInteractionMode.gesture,
           onDismissed: () => dismissed = true,
           onDragEnd: () => dragEnded = true,
@@ -102,8 +100,8 @@ void main() {
 
     // ~0.05 progress on a 600-tall screen — below the 0.15 threshold.
     await tester.drag(
-      find.byType(ConstrainedDismissiblePage),
-      const Offset(0, 30),
+      find.byType(FreeDismissiblePage),
+      const Offset(20, 30),
     );
     await tester.pumpAndSettle();
 
@@ -111,30 +109,64 @@ void main() {
     expect(dragEnded, isTrue);
   });
 
-  testWidgets('respects the selected side: a disallowed side cannot dismiss', (
+  testWidgets('one custom threshold governs the whole free-plane gesture', (
     tester,
   ) async {
     var dismissed = false;
+    var dragEnded = false;
 
     await tester.pumpWidget(
       wrap(
-        ConstrainedDismissiblePage(
-          directions: DismissDirections.up,
+        FreeDismissiblePage(
+          threshold: 0.5,
           interactionMode: DismissiblePageInteractionMode.gesture,
           onDismissed: () => dismissed = true,
+          onDragEnd: () => dragEnded = true,
           builder: (context, controller) => const FlutterLogo(),
         ),
       ),
     );
 
-    // Dragging down is not a permitted side when only `up` is allowed.
+    // 150 / 600 = 0.25 — past the default 0.15, short of the custom 0.5.
     await tester.drag(
-      find.byType(ConstrainedDismissiblePage),
-      const Offset(0, 200),
+      find.byType(FreeDismissiblePage),
+      const Offset(100, 150),
     );
     await tester.pumpAndSettle();
 
     expect(dismissed, isFalse);
+    expect(dragEnded, isTrue);
+  });
+
+  testWidgets('a drag tracks both plane axes without Axis Lock', (
+    tester,
+  ) async {
+    DismissiblePageDragUpdateDetails? lastDetails;
+
+    await tester.pumpWidget(
+      wrap(
+        FreeDismissiblePage(
+          interactionMode: DismissiblePageInteractionMode.gesture,
+          onDismissed: () {},
+          onDragUpdate: (details) => lastDetails = details,
+          builder: (context, controller) => const FlutterLogo(),
+        ),
+      ),
+    );
+
+    await tester.drag(
+      find.byType(FreeDismissiblePage),
+      const Offset(60, 40),
+    );
+    await tester.pump();
+
+    // Both components of the diagonal drag survive into presentation —
+    // Constrained Motion would have discarded the non-dominant axis.
+    expect(lastDetails, isNotNull);
+    if (lastDetails case final details?) {
+      expect(details.offset.dx, greaterThan(0.0));
+      expect(details.offset.dy, greaterThan(0.0));
+    }
   });
 
   testWidgets('disabled pages cannot begin dismissal', (tester) async {
@@ -143,7 +175,7 @@ void main() {
 
     await tester.pumpWidget(
       wrap(
-        ConstrainedDismissiblePage(
+        FreeDismissiblePage(
           disabled: true,
           interactionMode: DismissiblePageInteractionMode.gesture,
           onDismissed: () => dismissed = true,
@@ -154,64 +186,13 @@ void main() {
     );
 
     await tester.drag(
-      find.byType(ConstrainedDismissiblePage),
-      const Offset(0, 200),
+      find.byType(FreeDismissiblePage),
+      const Offset(100, 200),
     );
     await tester.pumpAndSettle();
 
     expect(dismissed, isFalse);
     expect(dragValue, 0.0);
-  });
-
-  testWidgets('empty directions cannot begin dismissal', (tester) async {
-    var dismissed = false;
-    var dragValue = 0.0;
-
-    await tester.pumpWidget(
-      wrap(
-        ConstrainedDismissiblePage(
-          directions: DismissDirections.empty,
-          interactionMode: DismissiblePageInteractionMode.gesture,
-          onDismissed: () => dismissed = true,
-          onDragUpdate: (details) => dragValue = details.overallDragValue,
-          builder: (context, controller) => const FlutterLogo(),
-        ),
-      ),
-    );
-
-    await tester.drag(
-      find.byType(ConstrainedDismissiblePage),
-      const Offset(0, 200),
-    );
-    await tester.pumpAndSettle();
-
-    expect(dismissed, isFalse);
-    expect(dragValue, 0.0);
-  });
-
-  testWidgets('onDragUpdate reports non-zero progress during a drag', (
-    tester,
-  ) async {
-    var dragValue = 0.0;
-
-    await tester.pumpWidget(
-      wrap(
-        ConstrainedDismissiblePage(
-          interactionMode: DismissiblePageInteractionMode.gesture,
-          onDismissed: () {},
-          onDragUpdate: (details) => dragValue = details.overallDragValue,
-          builder: (context, controller) => const FlutterLogo(),
-        ),
-      ),
-    );
-
-    await tester.drag(
-      find.byType(ConstrainedDismissiblePage),
-      const Offset(0, 30),
-    );
-    await tester.pump();
-
-    expect(dragValue, greaterThan(0.0));
   });
 
   testWidgets('drag lifecycle emits start and populated presentation details', (
@@ -222,7 +203,7 @@ void main() {
 
     await tester.pumpWidget(
       wrap(
-        ConstrainedDismissiblePage(
+        FreeDismissiblePage(
           interactionMode: DismissiblePageInteractionMode.gesture,
           onDismissed: () {},
           onDragStart: () => started = true,
@@ -233,8 +214,8 @@ void main() {
     );
 
     await tester.drag(
-      find.byType(ConstrainedDismissiblePage),
-      const Offset(0, 60),
+      find.byType(FreeDismissiblePage),
+      const Offset(40, 60),
     );
     await tester.pump();
 
@@ -257,7 +238,7 @@ void main() {
 
     await tester.pumpWidget(
       wrap(
-        ConstrainedDismissiblePage(
+        FreeDismissiblePage(
           onDismissed: () => dismissed = true,
           builder: (context, controller) => SingleChildScrollView(
             controller: controller,
@@ -286,7 +267,7 @@ void main() {
 
     await tester.pumpWidget(
       wrap(
-        ConstrainedDismissiblePage(
+        FreeDismissiblePage(
           reverseCurve: curve,
           interactionMode: DismissiblePageInteractionMode.gesture,
           onDismissed: () {},
@@ -295,11 +276,10 @@ void main() {
       ),
     );
 
-    // ~0.05 progress on a 600-tall screen — below the 0.15 threshold, so the
-    // gesture reverses and settles.
+    // Below the 0.15 threshold, so the gesture reverses and settles.
     await tester.drag(
-      find.byType(ConstrainedDismissiblePage),
-      const Offset(0, 30),
+      find.byType(FreeDismissiblePage),
+      const Offset(20, 30),
     );
     await tester.pumpAndSettle();
 

@@ -17,5 +17,6 @@ export 'src/widgets/dismissible_page_drag_update_details.dart';
 export 'src/widgets/dismissible_page_interaction_mode.dart';
 export 'src/widgets/dismissible_page_scroll_controller.dart'
     show DismissiblePageDragNotification;
+export 'src/widgets/free_dismissible_page.dart';
 export 'src/widgets/multi_axis_dismissible_page.dart';
 export 'src/widgets/single_axis_dismissible_page.dart';

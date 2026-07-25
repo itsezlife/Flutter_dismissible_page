@@ -208,7 +208,7 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
   );
 
   DragPresentation get _presentation {
-    // Constrained motion stores a fractional drag offset; chrome expects 
+    // Constrained motion stores a fractional drag offset; chrome expects
     // pixels.
     final fractional = _offset;
     return _presentationConfig.map(
@@ -440,28 +440,6 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
     _handleDragEnd();
   }
 
-  /// Determines if a delta is allowed for the configured direction.
-  ///
-  /// This method enforces directional constraints, ensuring that drag
-  /// gestures only proceed in the allowed direction(s).
-  bool _isDeltaAllowedForDirection(double delta) {
-    return switch (widget.direction) {
-      DismissiblePageDismissDirection.horizontal ||
-      DismissiblePageDismissDirection.vertical => true,
-      DismissiblePageDismissDirection.up => delta < 0,
-      DismissiblePageDismissDirection.down => delta > 0,
-      DismissiblePageDismissDirection.endToStart => switch (_textDirection) {
-        TextDirection.rtl => delta > 0,
-        TextDirection.ltr => delta < 0,
-      },
-      DismissiblePageDismissDirection.startToEnd => switch (_textDirection) {
-        TextDirection.rtl => delta < 0,
-        TextDirection.ltr => delta > 0,
-      },
-      _ => false,
-    };
-  }
-
   /// Determines if a delta is returning the page toward its origin.
   ///
   /// This is used to ensure smooth gesture coordination when the user
@@ -470,57 +448,48 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
     return (_dragExtent > 0 && delta < 0) || (_dragExtent < 0 && delta > 0);
   }
 
+  /// Maps the legacy direction enum onto [DismissDirections] for arbitration.
+  DismissDirections get _dismissDirections => switch (widget.direction) {
+    DismissiblePageDismissDirection.vertical => DismissDirections.vertical,
+    DismissiblePageDismissDirection.horizontal => DismissDirections.horizontal,
+    DismissiblePageDismissDirection.up => DismissDirections.up,
+    DismissiblePageDismissDirection.down => DismissDirections.down,
+    DismissiblePageDismissDirection.startToEnd => DismissDirections.startToEnd,
+    DismissiblePageDismissDirection.endToStart => DismissDirections.endToStart,
+    DismissiblePageDismissDirection.none ||
+    DismissiblePageDismissDirection.multi => DismissDirections.empty,
+  };
+
   /// Determines whether the scroll controller should consume user scroll input.
   ///
   /// Returns true if the scroll input should be consumed for dismissal,
   /// false if it should be handled by the scroll view.
   bool _shouldConsumeUserOffset(double delta, ScrollPosition position) {
-    final motionDelta = delta;
-    if (widget.direction == DismissiblePageDismissDirection.none ||
-        widget.direction == DismissiblePageDismissDirection.multi) {
-      return false;
-    }
-
     // Keep consuming while the page is returning toward origin so content does
     // not start scrolling prematurely.
-    final isReturningToOrigin = _isDeltaReturningPageToOrigin(motionDelta);
-    if (_dragExtent != 0 && isReturningToOrigin) {
+    if (_dragExtent != 0 && _isDeltaReturningPageToOrigin(delta)) {
       return true;
     }
 
-    if (!_isDeltaAllowedForDirection(motionDelta)) {
-      return false;
-    }
+    final directions = _dismissDirections;
+    final scrollAxis = axisDirectionToAxis(position.axisDirection);
 
+    // Mid-drag gesture mode keeps consuming permitted sides even mid-range.
     if (_dragExtent != 0 &&
         widget.interactionMode == DismissiblePageInteractionMode.gesture) {
-      return true;
+      return directions.targetsPermittedDismissSide(
+        delta: delta,
+        scrollAxis: scrollAxis,
+        textDirection: _textDirection,
+      );
     }
 
-    final isAtMinExtent = position.pixels <= position.minScrollExtent;
-    final isAtMaxExtent = position.pixels >= position.maxScrollExtent;
-    final isRtl = _textDirection == TextDirection.rtl;
-
-    switch (widget.direction) {
-      case DismissiblePageDismissDirection.vertical:
-      case DismissiblePageDismissDirection.horizontal:
-        return motionDelta > 0 ? isAtMinExtent : isAtMaxExtent;
-      case DismissiblePageDismissDirection.up:
-        return motionDelta < 0 && isAtMaxExtent;
-      case DismissiblePageDismissDirection.down:
-        return motionDelta > 0 && isAtMinExtent;
-      case DismissiblePageDismissDirection.endToStart:
-        return isRtl
-            ? (motionDelta > 0 && isAtMinExtent)
-            : (motionDelta < 0 && isAtMaxExtent);
-      case DismissiblePageDismissDirection.startToEnd:
-        return isRtl
-            ? (motionDelta < 0 && isAtMaxExtent)
-            : (motionDelta > 0 && isAtMinExtent);
-      case DismissiblePageDismissDirection.none:
-      case DismissiblePageDismissDirection.multi:
-        return false;
-    }
+    return directions.shouldConsumeScrollDelta(
+      delta: delta,
+      metrics: ScrollExtentMetrics.fromScrollMetrics(position),
+      scrollAxis: scrollAxis,
+      textDirection: _textDirection,
+    );
   }
 
   /// Handles animation status changes for the dismiss animation.

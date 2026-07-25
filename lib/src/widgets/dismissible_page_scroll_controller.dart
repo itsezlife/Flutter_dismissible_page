@@ -90,6 +90,7 @@ class DismissiblePageScrollPosition extends ScrollPositionWithSingleContext {
   bool deltaAwareListShouldScroll(double delta) =>
       listShouldScroll && delta > 0;
 
+  /// Guards start/end so each dismiss drag emits lifecycle callbacks once.
   bool _dismissDragUnderway = false;
 
   @override

@@ -81,46 +81,80 @@ final class AxisLock {
   const AxisLock._({
     required this.axis,
     required this.side,
-    required bool positive,
-  }) : _positive = positive;
+    required DismissDirections positiveSide,
+    required DismissDirections negativeSide,
+  }) : _positiveSide = positiveSide,
+       _negativeSide = negativeSide;
 
   /// The only axis along which the gesture may move.
   final Axis axis;
 
   /// The atomic dismiss side selected when the axis was locked.
+  ///
+  /// After lock, the side that decides dismiss-vs-reverse follows the sign of
+  /// the current extent — see [sideFor].
   final DismissDirections side;
 
-  final bool _positive;
+  final DismissDirections _positiveSide;
+  final DismissDirections _negativeSide;
+
+  /// The atomic side that currently applies for a signed [extent].
+  ///
+  /// At origin, returns the side selected when the axis was locked.
+  DismissDirections sideFor(double extent) => switch (extent) {
+    > 0 => _positiveSide,
+    < 0 => _negativeSide,
+    _ => side,
+  };
 
   /// Decides whether [progress] completes or reverses this locked gesture.
+  ///
+  /// [extent] selects which atomic side's threshold applies (sign-follows
+  /// extent). At origin, the initially locked [side] is used.
   DismissDecision decide({
     required double progress,
+    required double extent,
     required DismissThresholds thresholds,
   }) {
     assert(
       progress >= 0 && progress <= 1,
       'progress must be between 0 and 1',
     );
-    return progress >= thresholds._forSide(side)
+    return progress >= thresholds._forSide(sideFor(extent))
         ? DismissDecision.dismiss
         : DismissDecision.reverse;
   }
 
-  /// Projects [delta] onto the locked axis when it advances the locked side.
+  /// Projects [delta] onto the locked axis given [currentExtent].
   ///
-  /// Cross-axis and opposite-side movement is discarded.
-  Offset constrain(Offset delta) {
+  /// Cross-axis components are discarded. Reverse toward origin is applied.
+  /// When both atomic sides of the locked axis are permitted by [directions],
+  /// the gesture may cross origin into the other side. When only one side is
+  /// permitted, the resulting extent clamps at origin.
+  Offset constrain(
+    Offset delta, {
+    required double currentExtent,
+    required DismissDirections directions,
+  }) {
     final primaryDelta = switch (axis) {
       Axis.horizontal => delta.dx,
       Axis.vertical => delta.dy,
     };
-    if (primaryDelta == 0 || (primaryDelta > 0) != _positive) {
-      return Offset.zero;
-    }
+    if (primaryDelta == 0) return Offset.zero;
+
+    final proposed = currentExtent + primaryDelta;
+    final allowPositive = directions.contains(_positiveSide);
+    final allowNegative = directions.contains(_negativeSide);
+    final clamped = proposed.clamp(
+      allowNegative ? double.negativeInfinity : 0.0,
+      allowPositive ? double.infinity : 0.0,
+    );
+    final applied = clamped - currentExtent;
+    if (applied == 0) return Offset.zero;
 
     return switch (axis) {
-      Axis.horizontal => Offset(primaryDelta, 0),
-      Axis.vertical => Offset(0, primaryDelta),
+      Axis.horizontal => Offset(applied, 0),
+      Axis.vertical => Offset(0, applied),
     };
   }
 
@@ -130,14 +164,16 @@ final class AxisLock {
       other is AxisLock &&
           axis == other.axis &&
           side == other.side &&
-          _positive == other._positive;
+          _positiveSide == other._positiveSide &&
+          _negativeSide == other._negativeSide;
 
   @override
-  int get hashCode => Object.hash(axis, side, _positive);
+  int get hashCode => Object.hash(axis, side, _positiveSide, _negativeSide);
 
   @override
   String toString() =>
-      'AxisLock(axis: $axis, side: $side, positive: $_positive)';
+      'AxisLock(axis: $axis, side: $side, '
+      'positiveSide: $_positiveSide, negativeSide: $_negativeSide)';
 }
 
 /// Axis-lock behavior for Constrained Motion.
@@ -167,17 +203,28 @@ extension ConstrainedMotionDirections on DismissDirections {
     };
     if (axis == null) return null;
 
-    final side = switch ((axis, textDirection)) {
-      (Axis.vertical, _) when delta.dy < 0 => DismissDirections.up,
-      (Axis.vertical, _) when delta.dy > 0 => DismissDirections.down,
-      (Axis.horizontal, TextDirection.ltr) when delta.dx > 0 =>
+    final (positiveSide, negativeSide) = switch ((axis, textDirection)) {
+      (Axis.vertical, _) => (
+        DismissDirections.down,
+        DismissDirections.up,
+      ),
+      (Axis.horizontal, TextDirection.ltr) => (
         DismissDirections.startToEnd,
-      (Axis.horizontal, TextDirection.ltr) when delta.dx < 0 =>
         DismissDirections.endToStart,
-      (Axis.horizontal, TextDirection.rtl) when delta.dx < 0 =>
+      ),
+      (Axis.horizontal, TextDirection.rtl) => (
+        DismissDirections.endToStart,
         DismissDirections.startToEnd,
-      (Axis.horizontal, TextDirection.rtl) when delta.dx > 0 =>
-        DismissDirections.endToStart,
+      ),
+    };
+
+    final primaryDelta = switch (axis) {
+      Axis.horizontal => delta.dx,
+      Axis.vertical => delta.dy,
+    };
+    final side = switch (primaryDelta) {
+      > 0 => positiveSide,
+      < 0 => negativeSide,
       _ => null,
     };
 
@@ -185,10 +232,8 @@ extension ConstrainedMotionDirections on DismissDirections {
       final side? when contains(side) => AxisLock._(
         axis: axis,
         side: side,
-        positive: switch (axis) {
-          Axis.horizontal => delta.dx > 0,
-          Axis.vertical => delta.dy > 0,
-        },
+        positiveSide: positiveSide,
+        negativeSide: negativeSide,
       ),
       _ => null,
     };

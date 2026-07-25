@@ -1,26 +1,45 @@
-import 'dart:async';
-import 'dart:math';
-
-import 'package:dismissible_page/dismissible_page_engine.dart';
-import 'package:dismissible_page/src/widgets/dismissible_page_builder.dart';
-import 'package:dismissible_page/src/widgets/dismissible_page_chrome.dart';
-import 'package:dismissible_page/src/widgets/dismissible_page_drag_update_details.dart';
-import 'package:dismissible_page/src/widgets/dismissible_page_interaction_mode.dart';
-import 'package:dismissible_page/src/widgets/dismissible_page_scroll_controller.dart';
-import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
+part of 'dismissible_page.dart';
 
 /// {@template constrained_dismissible_page}
 /// A dismissible page whose motion is Constrained Motion: each gesture locks
 /// onto a single [Axis] (chosen by the dominant delta) and then moves only
-/// along that axis and only toward sides permitted by [directions].
+/// along that axis and only toward sides permitted by [directions]. Reverse
+/// toward origin on the locked axis is allowed; when both sides of that axis
+/// are permitted, the gesture may cross origin into the other allowed side.
 ///
-/// This is the public Constrained variant of the sealed page API. It wires the
-/// Dismiss Engine (Axis Lock, [AxisLock], [DismissThresholds],
-/// [DragPresentationConfig], and Scroll Arbitration) to a
-/// thin gesture/scroll adapter and the shared [DismissiblePageChrome]; it owns
-/// no domain rules of its own. See
-/// [ConstrainedMotionDirections.resolveAxisLock].
+/// ## Choosing [directions]
+///
+/// [DismissDirections] is a combinable bitmask. Pass a preset, one atom, or
+/// build a custom set with [DismissDirections.add]:
+///
+/// ```dart
+/// DismissiblePage.constrained(
+///   // up or down (default if omitted)
+///   directions: DismissDirections.vertical,
+///   builder: ...,
+///   onDismissed: ...,
+/// );
+///
+/// DismissiblePage.constrained(
+///   // custom: up and start-to-end only
+///   directions: DismissDirections.up.add(DismissDirections.startToEnd),
+///   builder: ...,
+///   onDismissed: ...,
+/// );
+///
+/// DismissiblePage.constrained(
+///   // vertical without up
+///   directions: DismissDirections.vertical.remove(DismissDirections.up),
+///   builder: ...,
+///   onDismissed: ...,
+/// );
+/// ```
+///
+/// Combining cross-axis sides (e.g. [DismissDirections.up] added to
+/// [DismissDirections.startToEnd]) does **not** enable Free Motion. The
+/// gesture still axis-locks; only the allowed side on the locked axis can
+/// dismiss. For full-plane drag, use [FreeDismissiblePage].
+/// [DismissDirections.empty] or [disabled] both turn drag dismissal off.
 ///
 /// [interactionMode] is orthogonal to motion:
 /// - [DismissiblePageInteractionMode.scroll] (default) coordinates dismissal
@@ -28,130 +47,56 @@ import 'package:flutter/material.dart';
 ///   [builder].
 /// - [DismissiblePageInteractionMode.gesture] handles content that never
 ///   scrolls with a direct drag recognizer.
-///
-/// An empty [directions] set or [disabled] both make the page
-/// non-dismissible; [disabled] is the motion-agnostic switch shared with the
-/// Free variant, while an empty set is the degenerate Constrained
-/// configuration.
 /// {@endtemplate}
-class ConstrainedDismissiblePage extends StatefulWidget {
+class ConstrainedDismissiblePage extends DismissiblePage {
   /// {@macro constrained_dismissible_page}
   const ConstrainedDismissiblePage({
-    required this.builder,
-    required this.onDismissed,
+    required super.builder,
+    required super.onDismissed,
     this.directions = DismissDirections.vertical,
     this.thresholds = const DismissThresholds(),
-    this.interactionMode = DismissiblePageInteractionMode.scroll,
-    this.disabled = false,
-    this.onDragStart,
-    this.onDragEnd,
-    this.onDragUpdate,
-    this.isFullScreen = true,
-    this.backgroundColor,
-    this.dragStartBehavior = DragStartBehavior.down,
-    this.dragSensitivity = 0.7,
-    this.minScale = .85,
-    this.minRadius = 7,
-    this.maxRadius = 30,
-    this.maxTransformValue = .4,
-    this.startingOpacity = 1,
-    this.enableBackgroundOpacity = true,
-    this.minOpacity = 0,
-    this.reverseDuration = const Duration(milliseconds: 200),
-    this.reverseCurve = Curves.easeInOut,
-    this.hitTestBehavior = HitTestBehavior.opaque,
+    super.interactionMode,
+    super.disabled,
+    super.onDragStart,
+    super.onDragEnd,
+    super.onDragUpdate,
+    super.isFullScreen,
+    super.backgroundColor,
+    super.dragStartBehavior,
+    super.dragSensitivity,
+    super.minScale,
+    super.minRadius,
+    super.maxRadius,
+    super.maxTransformValue,
+    super.startingOpacity,
+    super.enableBackgroundOpacity,
+    super.minOpacity,
+    super.reverseDuration,
+    super.reverseCurve,
+    super.hitTestBehavior,
     super.key,
   });
 
-  /// Builds the content to dismiss.
+  /// The sides that may complete a dismissal.
   ///
-  /// The provided [ScrollController] must be attached to the primary
-  /// scrollable when [interactionMode] is
-  /// [DismissiblePageInteractionMode.scroll].
-  final DismissiblePageBuilder builder;
-
-  /// Called when a gesture crosses the permitted side's Dismiss Threshold.
-  final VoidCallback onDismissed;
-
-  /// The sides that may complete a dismissal. An empty set disables drag.
+  /// Combine atoms with [DismissDirections.add], strip with
+  /// [DismissDirections.remove], or use presets like
+  /// [DismissDirections.vertical]. Defaults to
+  /// [DismissDirections.vertical]. [DismissDirections.empty] disables drag.
+  /// See [DismissDirections] for full combine examples.
   final DismissDirections directions;
 
   /// Per-atomic-side progress thresholds for the locked side.
   final DismissThresholds thresholds;
-
-  /// How dismissal is coordinated with nested scrolling.
-  final DismissiblePageInteractionMode interactionMode;
-
-  /// When true, drag-to-dismiss is disabled while content stays interactive.
-  final bool disabled;
-
-  /// Called when a dismiss drag starts.
-  final VoidCallback? onDragStart;
-
-  /// Called when a dismiss drag ends without dismissing.
-  final VoidCallback? onDragEnd;
-
-  /// Called with presentation details on every drag frame.
-  final ValueChanged<DismissiblePageDragUpdateDetails>? onDragUpdate;
-
-  /// Whether the page ignores device padding.
-  final bool isFullScreen;
-
-  /// Page background painted behind the transformed content.
-  final Color? backgroundColor;
-
-  /// How drag start is recognized.
-  final DragStartBehavior dragStartBehavior;
-
-  /// Scales how far a drag translates the page.
-  final double dragSensitivity;
-
-  /// Content scale at full drag progress.
-  final double minScale;
-
-  /// Border radius at rest.
-  final double minRadius;
-
-  /// Border radius at full drag progress.
-  final double maxRadius;
-
-  /// Maximum translation as a fraction of the axis extent (0.0–1.0).
-  final double maxTransformValue;
-
-  /// Background opacity at rest.
-  final double startingOpacity;
-
-  /// Whether the background opacity follows drag progress.
-  final bool enableBackgroundOpacity;
-
-  /// Floor for background opacity as progress increases.
-  final double minOpacity;
-
-  /// Duration of the settle animation when a gesture reverses.
-  final Duration reverseDuration;
-
-  /// Easing curve of the settle animation when a gesture reverses.
-  final Curve reverseCurve;
-
-  /// Hit-test behavior of the drag recognizer.
-  final HitTestBehavior hitTestBehavior;
 
   @override
   State<ConstrainedDismissiblePage> createState() =>
       _ConstrainedDismissiblePageState();
 }
 
-class _ConstrainedDismissiblePageState extends State<ConstrainedDismissiblePage>
-    with SingleTickerProviderStateMixin {
-  static const double _kOriginEpsilon = 1e-6;
-
-  late final DismissiblePageScrollController _scrollController;
-  late final ScrollController _defaultScrollController;
-  late final AnimationController _settleController;
-  late final ValueNotifier<DismissiblePageDragUpdateDetails> _dragNotifier;
-
+class _ConstrainedDismissiblePageState
+    extends _DismissiblePageState<ConstrainedDismissiblePage> {
   late final TextDirection _textDirection = Directionality.of(context);
-  late final Size _screenSize = MediaQuery.sizeOf(context);
 
   /// The axis/side locked for the active gesture, or null before a lock.
   AxisLock? _lock;
@@ -162,87 +107,25 @@ class _ConstrainedDismissiblePageState extends State<ConstrainedDismissiblePage>
   /// Drag extent captured when a reverse settle begins.
   double _settleFrom = 0;
 
-  bool _dragUnderway = false;
-  bool _canInnerContentScroll = false;
-
-  bool get _dismissEnabled =>
+  @override
+  bool get dismissEnabled =>
       !widget.disabled && widget.directions.allowsDragDismissal;
 
   @override
-  void initState() {
-    super.initState();
-    // Resting details must not read MediaQuery/Directionality — those
-    // inherited lookups are illegal until after initState completes.
-    _dragNotifier = ValueNotifier(
-      DismissiblePageDragUpdateDetails(
-        radius: widget.minRadius,
-        opacity: widget.startingOpacity,
-      ),
-    )..addListener(_dragListener);
-    _settleController =
-        AnimationController(vsync: this, duration: widget.reverseDuration)
-          ..addListener(_handleSettleTick)
-          ..addStatusListener(_handleSettleStatus);
-    _scrollController = DismissiblePageScrollController(
-      shouldConsumeUserOffset: _shouldConsumeUserOffset,
-      onDismissDragStart: _handleScrollDragStart,
-      onDismissDragUpdate: _handleScrollDragUpdate,
-      onDismissDragEnd: _handleScrollDragEnd,
-    );
-    _defaultScrollController = ScrollController();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkCanInnerContentScroll();
-      DismissiblePageDragNotification(
-        details: _dragNotifier.value,
-      ).dispatch(context);
-    }, debugLabel: 'ConstrainedDismissiblePage.postFrame');
-  }
-
-  @override
-  void dispose() {
-    _dragNotifier
-      ..removeListener(_dragListener)
-      ..dispose();
-    _scrollController.dispose();
-    _defaultScrollController.dispose();
-    _settleController
-      ..removeListener(_handleSettleTick)
-      ..removeStatusListener(_handleSettleStatus)
-      ..dispose();
-    super.dispose();
-  }
-
-  void _checkCanInnerContentScroll() {
-    if (!_scrollController.hasClients) return;
-    final previous = _canInnerContentScroll;
-    _canInnerContentScroll = _scrollController.position.maxScrollExtent > 0;
-    // Structural flip (gesture shell vs scroll arbitration) — the only
-    // setState this State needs.
-    if (previous != _canInnerContentScroll) setState(() {});
-  }
-
-  // --- Presentation -------------------------------------------------------
-
-  late final DragPresentationConfig _presentationConfig =
-      DragPresentationConfig(
-        minRadius: widget.minRadius,
-        maxRadius: widget.maxRadius,
-        minScale: widget.minScale,
-        startingOpacity: widget.startingOpacity,
-        minOpacity: widget.minOpacity,
-      );
+  String get postFrameDebugLabel => 'ConstrainedDismissiblePage.postFrame';
 
   Axis get _axis => _lock?.axis ?? Axis.vertical;
 
   double get _axisExtent => switch (_axis) {
-    Axis.horizontal => _screenSize.width,
-    Axis.vertical => _screenSize.height,
+    Axis.horizontal => screenSize.width,
+    Axis.vertical => screenSize.height,
   };
 
   /// Raw drag progress along the locked axis (0.0–1.0), the value compared
   /// against the Dismiss Threshold.
-  double get _progress =>
-      _axisExtent == 0 ? 0 : (_dragExtent.abs() / _axisExtent).clamp(0.0, 1.0);
+  double get _progress => _axisExtent == 0
+      ? 0
+      : (_dragExtent.abs() / _axisExtent).clamp(0.0, 1.0);
 
   DismissiblePageDragUpdateDetails _detailsForExtent(double extent) {
     final axisExtent = _axisExtent;
@@ -255,10 +138,10 @@ class _ConstrainedDismissiblePageState extends State<ConstrainedDismissiblePage>
           widget.maxTransformValue,
         );
     final offset = switch (_axis) {
-      Axis.horizontal => Offset(translationFraction * _screenSize.width, 0),
-      Axis.vertical => Offset(0, translationFraction * _screenSize.height),
+      Axis.horizontal => Offset(translationFraction * screenSize.width, 0),
+      Axis.vertical => Offset(0, translationFraction * screenSize.height),
     };
-    final presentation = _presentationConfig.map(
+    final presentation = presentationConfig.map(
       progress: (progress * widget.dragSensitivity).clamp(0.0, 1.0),
       offset: offset,
     );
@@ -271,46 +154,40 @@ class _ConstrainedDismissiblePageState extends State<ConstrainedDismissiblePage>
     );
   }
 
-  /// Pushes a new chrome frame without rebuilding the State subtree.
   void _publishExtent(double extent) {
     _dragExtent = extent;
-
-    if (!mounted) return;
-    _dragNotifier.value = _detailsForExtent(extent);
+    publishDetails(_detailsForExtent(extent));
   }
 
-  void _dragListener() {
-    widget.onDragUpdate?.call(_dragNotifier.value);
-    DismissiblePageDragNotification(
-      details: _dragNotifier.value,
-    ).dispatch(context);
-  }
-
-  // --- Gesture adapter ----------------------------------------------------
-
-  void _handleDragStart([Offset? _]) {
-    if (!_dismissEnabled) return;
+  @override
+  void handleDragStart([Offset? _]) {
+    if (!dismissEnabled) return;
     widget.onDragStart?.call();
-    _dragUnderway = true;
-    if (_settleController.isAnimating) {
-      _settleController.stop();
+    dragUnderway = true;
+    if (settleController.isAnimating) {
+      settleController.stop();
     } else {
       _publishExtent(0);
       _lock = null;
     }
   }
 
-  void _applyDelta(Offset delta) {
-    if (!_dragUnderway || _settleController.isAnimating) return;
+  @override
+  void applyDelta(Offset delta) {
+    if (!dragUnderway || settleController.isAnimating) return;
     final lock = _lock ??= widget.directions.resolveAxisLock(
       delta: delta,
       textDirection: _textDirection,
     );
     if (lock == null) return;
 
-    // The engine projects the delta onto the locked axis and discards
-    // cross-axis and opposite-side movement, keeping this adapter thin.
-    final projected = lock.constrain(delta);
+    // The engine projects the delta onto the locked axis, allows reverse
+    // toward origin, and clamps or side-flips per Dismiss Directions.
+    final projected = lock.constrain(
+      delta,
+      currentExtent: _dragExtent,
+      directions: widget.directions,
+    );
     final axisDelta = switch (lock.axis) {
       Axis.horizontal => projected.dx,
       Axis.vertical => projected.dy,
@@ -320,69 +197,50 @@ class _ConstrainedDismissiblePageState extends State<ConstrainedDismissiblePage>
     _publishExtent(_dragExtent + axisDelta);
   }
 
-  void _handleDragEnd([DragEndDetails? _]) {
-    if (!_dragUnderway) return;
-    _dragUnderway = false;
+  @override
+  void handleDragEnd([DragEndDetails? _]) {
+    if (!dragUnderway) return;
+    dragUnderway = false;
     final lock = _lock;
     if (lock == null || _dragExtent == 0) return;
 
-    switch (lock.decide(progress: _progress, thresholds: widget.thresholds)) {
+    switch (lock.decide(
+      progress: _progress,
+      extent: _dragExtent,
+      thresholds: widget.thresholds,
+    )) {
       case DismissDecision.dismiss:
-        _dispatchDismissed();
+        dispatchDismissed();
         widget.onDismissed();
       case DismissDecision.reverse:
         _settleFrom = _dragExtent;
-        unawaited(_settleController.forward(from: 0));
+        unawaited(settleController.forward(from: 0));
         widget.onDragEnd?.call();
     }
   }
 
-  void _handleSettleTick() {
-    final t = widget.reverseCurve.transform(_settleController.value);
-    _publishExtent(_settleFrom * (1 - t));
-  }
+  @override
+  void onSettleTick(double t) => _publishExtent(_settleFrom * (1 - t));
 
-  void _handleSettleStatus(AnimationStatus status) {
-    if (status != AnimationStatus.completed) return;
-
-    if (mounted) _settleController.value = 0;
+  @override
+  void onSettleCompleted() {
     _publishExtent(0);
     _lock = null;
   }
 
-  void _dispatchDismissed() {
-    DismissiblePageDragNotification(
-      details: _dragNotifier.value.copyWith(isDismissed: true),
-    ).dispatch(context);
-  }
-
-  // --- Scroll arbitration adapter -----------------------------------------
-
-  void _handleScrollDragStart() => _handleDragStart();
-
-  void _handleScrollDragUpdate(double delta, ScrollPosition position) {
+  @override
+  void handleScrollDragUpdate(double delta, ScrollPosition position) {
     final scrollAxis = axisDirectionToAxis(position.axisDirection);
     final delta2D = switch (scrollAxis) {
       Axis.vertical => Offset(0, delta),
       Axis.horizontal => Offset(delta, 0),
     };
 
-    final hasScrollableContent =
-        (position.maxScrollExtent - position.minScrollExtent).abs() >
-        _kOriginEpsilon;
-    final isReturning = _dragExtent != 0 && _isDeltaReturningToOrigin(delta2D);
-    final reachesOrigin =
-        isReturning && (delta.abs() + _kOriginEpsilon >= _dragExtent.abs());
-
-    if (hasScrollableContent && reachesOrigin) {
-      _publishExtent(0);
-      return;
-    }
-
-    _applyDelta(delta2D);
+    // Axis Lock.constrain applies reverse-to-origin, clamps single-side sets
+    // at origin, and may cross into the other allowed side. Do not snap to
+    // origin here — that would discard permitted side flips.
+    applyDelta(delta2D);
   }
-
-  void _handleScrollDragEnd() => _handleDragEnd();
 
   bool _isDeltaReturningToOrigin(Offset delta) {
     final lock = _lock;
@@ -395,8 +253,9 @@ class _ConstrainedDismissiblePageState extends State<ConstrainedDismissiblePage>
         (_dragExtent < 0 && axisDelta > 0);
   }
 
-  bool _shouldConsumeUserOffset(double delta, ScrollPosition position) {
-    if (!_dismissEnabled) return false;
+  @override
+  bool shouldConsumeUserOffset(double delta, ScrollPosition position) {
+    if (!dismissEnabled) return false;
     final scrollAxis = axisDirectionToAxis(position.axisDirection);
     final delta2D = switch (scrollAxis) {
       Axis.vertical => Offset(0, delta),
@@ -412,64 +271,6 @@ class _ConstrainedDismissiblePageState extends State<ConstrainedDismissiblePage>
       metrics: ScrollExtentMetrics.fromScrollMetrics(position),
       scrollAxis: scrollAxis,
       textDirection: _textDirection,
-    );
-  }
-
-  // --- Build --------------------------------------------------------------
-
-  @override
-  Widget build(BuildContext context) {
-    final contentPadding = widget.isFullScreen
-        ? EdgeInsets.zero
-        : MediaQuery.paddingOf(context);
-
-    final scrollMode =
-        widget.interactionMode == DismissiblePageInteractionMode.scroll;
-    final scrollController = (scrollMode && _dismissEnabled)
-        ? _scrollController
-        : _defaultScrollController;
-    final useScrollArbitration =
-        scrollMode && _dismissEnabled && _canInnerContentScroll;
-
-    // Chrome rebuilds on drag frames; builder content is the stable [child]
-    // and is not rebuilt every pointer move.
-    final chrome = ValueListenableBuilder<DismissiblePageDragUpdateDetails>(
-      valueListenable: _dragNotifier,
-      child: widget.builder(context, scrollController),
-      builder: (context, details, child) {
-        return DismissiblePageChrome(
-          presentation: DragPresentation(
-            progress: details.overallDragValue,
-            offset: details.offset,
-            radius: details.radius,
-            opacity: details.opacity,
-            scale: details.scale,
-          ),
-          backgroundColor: widget.backgroundColor,
-          enableBackgroundOpacity: widget.enableBackgroundOpacity,
-          contentPadding: contentPadding,
-          child: child!,
-        );
-      },
-    );
-
-    return PopScope(
-      onPopInvokedWithResult: (didPop, _) {
-        if (didPop) _dispatchDismissed();
-      },
-      child: useScrollArbitration ? chrome : _wrapWithGestures(chrome),
-    );
-  }
-
-  Widget _wrapWithGestures(Widget child) {
-    if (!_dismissEnabled) return child;
-    return GestureDetector(
-      behavior: widget.hitTestBehavior,
-      dragStartBehavior: widget.dragStartBehavior,
-      onPanStart: (details) => _handleDragStart(details.globalPosition),
-      onPanUpdate: (details) => _applyDelta(details.delta),
-      onPanEnd: _handleDragEnd,
-      child: child,
     );
   }
 }

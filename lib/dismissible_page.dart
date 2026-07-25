@@ -1,22 +1,22 @@
-/// Flutter widget that allows you to dismiss page to any direction, forget the
-/// boring back button and plain transitions.
+/// Flutter widget that dismisses a page via drag gestures, optionally
+/// coordinated with nested scrollables.
 ///
-/// - Dismiss to any direction
-/// - Works with nested list view
-/// - Animating border
-/// - Animating background
-/// - Animating scale
+/// The thin public API exposes the two sealed page variants
+/// (`ConstrainedDismissiblePage`, `FreeDismissiblePage`) plus the vocabulary
+/// they are configured with: `DismissDirections`, `DismissThresholds`,
+/// `DismissiblePageInteractionMode`, drag details, the builder typedef, and
+/// the transparent route helpers. Dismiss Engine internals live behind the
+/// dedicated `package:dismissible_page/dismissible_page_engine.dart`
+/// entrypoint and are not re-exported here.
 library;
 
+export 'src/engine/constrained_motion.dart' show DismissThresholds;
+export 'src/engine/dismiss_directions.dart';
 export 'src/routes/dismissible_extensions.dart';
 export 'src/routes/dismissible_routes.dart';
-export 'src/widgets/constrained_dismissible_page.dart';
 export 'src/widgets/dismissible_page.dart';
-export 'src/widgets/dismissible_page_dismiss_direction.dart';
+export 'src/widgets/dismissible_page_builder.dart';
 export 'src/widgets/dismissible_page_drag_update_details.dart';
 export 'src/widgets/dismissible_page_interaction_mode.dart';
 export 'src/widgets/dismissible_page_scroll_controller.dart'
     show DismissiblePageDragNotification;
-export 'src/widgets/free_dismissible_page.dart';
-export 'src/widgets/multi_axis_dismissible_page.dart';
-export 'src/widgets/single_axis_dismissible_page.dart';

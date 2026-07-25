@@ -1,5 +1,4 @@
 import 'package:dismissible_page/dismissible_page.dart';
-import 'package:dismissible_page/dismissible_page_engine.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -278,6 +277,82 @@ void main() {
 
     expect(dismissed, isTrue);
   });
+
+  testWidgets(
+    'scroll mode reverse after dismiss start moves the page back',
+    (tester) async {
+      final dragValues = <double>[];
+
+      await tester.pumpWidget(
+        wrap(
+          ConstrainedDismissiblePage(
+            onDismissed: () {},
+            onDragUpdate: (details) => dragValues.add(details.overallDragValue),
+            builder: (context, controller) => SingleChildScrollView(
+              controller: controller,
+              child: const SizedBox(height: 2200, child: FlutterLogo()),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byType(SingleChildScrollView)),
+      );
+      // Overscroll at the top starts a downward dismiss.
+      await gesture.moveBy(const Offset(0, 120));
+      await tester.pump();
+      expect(dragValues, isNotEmpty);
+      final afterStart = dragValues.last;
+      expect(afterStart, greaterThan(0));
+
+      // Reverse toward origin without lifting — page must follow.
+      await gesture.moveBy(const Offset(0, -50));
+      await tester.pump();
+      expect(dragValues.last, lessThan(afterStart));
+      expect(dragValues.last, greaterThan(0));
+
+      await gesture.up();
+      await tester.pumpAndSettle();
+    },
+  );
+
+  testWidgets(
+    'scroll mode can cross origin into the other allowed vertical side',
+    (tester) async {
+      Offset? lastOffset;
+
+      await tester.pumpWidget(
+        wrap(
+          ConstrainedDismissiblePage(
+            onDismissed: () {},
+            onDragUpdate: (details) => lastOffset = details.offset,
+            builder: (context, controller) => SingleChildScrollView(
+              controller: controller,
+              child: const SizedBox(height: 2200, child: FlutterLogo()),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byType(SingleChildScrollView)),
+      );
+      await gesture.moveBy(const Offset(0, 80));
+      await tester.pump();
+      expect(lastOffset?.dy, greaterThan(0));
+
+      // Past origin into the up side — offset sign must flip.
+      await gesture.moveBy(const Offset(0, -160));
+      await tester.pump();
+      expect(lastOffset?.dy, lessThan(0));
+
+      await gesture.up();
+      await tester.pumpAndSettle();
+    },
+  );
 
   testWidgets('a reversing gesture eases the settle with the given curve', (
     tester,

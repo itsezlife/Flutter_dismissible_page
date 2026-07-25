@@ -1,8 +1,44 @@
 /// Combinable set of allowed drag sides that may complete a dismissal.
 ///
-/// Atoms are [up], [down], [startToEnd], and [endToStart]. Named composites
-/// such as [vertical] and [horizontal] are OR-aliases of those atoms. The
-/// [empty] set means dismissal by drag is not allowed.
+/// [DismissDirections] is a bitmask. Start from atomic sides or named
+/// composites, then combine with [add], or strip sides with [remove]. Pass
+/// the result to `ConstrainedDismissiblePage.directions`.
+///
+/// Atomic sides: [up], [down], [startToEnd], [endToStart].
+/// Named composites: [vertical] ([up] plus [down]), [horizontal]
+/// ([startToEnd] plus [endToStart]), [all] (every atom).
+/// [empty] means drag dismissal is off.
+///
+/// ## Combining
+///
+/// ```dart
+/// // Preset: dismiss up or down (same as the Constrained default).
+/// DismissDirections.vertical
+///
+/// // One atom.
+/// DismissDirections.down
+///
+/// // Custom mix — add the sides you want.
+/// DismissDirections.up.add(DismissDirections.startToEnd)
+///
+/// // Chain add for three sides.
+/// DismissDirections.up
+///     .add(DismissDirections.startToEnd)
+///     .add(DismissDirections.endToStart)
+///
+/// // Composite minus one side.
+/// DismissDirections.vertical.remove(DismissDirections.up)
+///
+/// // Every cardinal side, still Constrained Motion (not Free Motion).
+/// DismissDirections.all
+/// ```
+///
+/// The `|` operator is equivalent to [add] if you prefer operator syntax.
+///
+/// Cross-axis combinations stay Constrained Motion: the gesture locks onto
+/// one axis by dominant delta, then only the allowed side on that axis can
+/// dismiss. Free Motion is a separate page type (`FreeDismissiblePage`), not
+/// a direction flag.
 extension type const DismissDirections(int _value) {
   /// No sides allowed — drag dismissal is unavailable.
   static const DismissDirections empty = DismissDirections(0);
@@ -44,11 +80,17 @@ extension type const DismissDirections(int _value) {
   bool contains(DismissDirections other) =>
       (_value & other._value) == other._value;
 
-  /// Union of this set and [other].
+  /// Union of this set and [other]. Operator form of [add]; prefer [add].
   DismissDirections operator |(DismissDirections other) =>
       DismissDirections(_value | other._value);
 
   /// Returns a copy with every side in [other] allowed.
+  ///
+  /// The preferred way to build a custom set:
+  ///
+  /// ```dart
+  /// DismissDirections.up.add(DismissDirections.startToEnd)
+  /// ```
   DismissDirections add(DismissDirections other) => this | other;
 
   /// Returns a copy with every side in [other] disallowed.

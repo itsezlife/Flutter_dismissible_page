@@ -12,6 +12,7 @@ enum DismissDecision {
 }
 
 /// Per-atomic-side progress thresholds for Constrained Motion.
+@immutable
 final class DismissThresholds {
   /// Creates thresholds for each atomic dismiss side.
   const DismissThresholds({
@@ -49,9 +50,30 @@ final class DismissThresholds {
     DismissDirections.endToStart => endToStart,
     _ => throw StateError('side must be one atomic DismissDirections value'),
   };
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DismissThresholds &&
+          up == other.up &&
+          down == other.down &&
+          startToEnd == other.startToEnd &&
+          endToStart == other.endToStart;
+
+  @override
+  int get hashCode => Object.hash(up, down, startToEnd, endToStart);
+
+  @override
+  String toString() =>
+      'DismissThresholds('
+      'up: $up, '
+      'down: $down, '
+      'startToEnd: $startToEnd, '
+      'endToStart: $endToStart)';
 }
 
 /// The stable axis and atomic side selected for a Constrained gesture.
+@immutable
 final class AxisLock {
   const AxisLock._({
     required this.axis,
@@ -98,6 +120,21 @@ final class AxisLock {
       Axis.vertical => Offset(0, primaryDelta),
     };
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AxisLock &&
+          axis == other.axis &&
+          side == other.side &&
+          _positive == other._positive;
+
+  @override
+  int get hashCode => Object.hash(axis, side, _positive);
+
+  @override
+  String toString() =>
+      'AxisLock(axis: $axis, side: $side, positive: $_positive)';
 }
 
 /// Axis-lock behavior for Constrained Motion.

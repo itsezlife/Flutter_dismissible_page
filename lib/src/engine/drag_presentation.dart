@@ -1,6 +1,9 @@
 import 'dart:ui' show Offset, lerpDouble;
 
+import 'package:flutter/foundation.dart';
+
 /// Visual bounds used to map drag progress into presentation details.
+@immutable
 final class DragPresentationConfig {
   /// Creates presentation bounds matching the package's historical defaults.
   const DragPresentationConfig({
@@ -26,7 +29,7 @@ final class DragPresentationConfig {
   /// Floor for background opacity as progress increases.
   final double minOpacity;
 
-  /// Maps [progress] and gesture [offset] to deterministic presentation 
+  /// Maps [progress] and gesture [offset] to deterministic presentation
   /// details.
   DragPresentation map({
     required double progress,
@@ -48,9 +51,38 @@ final class DragPresentationConfig {
       scale: lerpDouble(1, minScale, progress)!,
     );
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DragPresentationConfig &&
+          minRadius == other.minRadius &&
+          maxRadius == other.maxRadius &&
+          minScale == other.minScale &&
+          startingOpacity == other.startingOpacity &&
+          minOpacity == other.minOpacity;
+
+  @override
+  int get hashCode => Object.hash(
+    minRadius,
+    maxRadius,
+    minScale,
+    startingOpacity,
+    minOpacity,
+  );
+
+  @override
+  String toString() =>
+      'DragPresentationConfig('
+      'minRadius: $minRadius, '
+      'maxRadius: $maxRadius, '
+      'minScale: $minScale, '
+      'startingOpacity: $startingOpacity, '
+      'minOpacity: $minOpacity)';
 }
 
 /// Already-computed visual details for a dismissible drag frame.
+@immutable
 final class DragPresentation {
   /// Creates a drag presentation snapshot.
   const DragPresentation({
@@ -75,4 +107,26 @@ final class DragPresentation {
 
   /// Content scale for this frame.
   final double scale;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DragPresentation &&
+          progress == other.progress &&
+          offset == other.offset &&
+          radius == other.radius &&
+          opacity == other.opacity &&
+          scale == other.scale;
+
+  @override
+  int get hashCode => Object.hash(progress, offset, radius, opacity, scale);
+
+  @override
+  String toString() =>
+      'DragPresentation('
+      'progress: $progress, '
+      'offset: $offset, '
+      'radius: $radius, '
+      'opacity: $opacity, '
+      'scale: $scale)';
 }

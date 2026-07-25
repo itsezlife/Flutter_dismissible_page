@@ -6,3 +6,4 @@
 library;
 
 export 'src/engine/dismiss_constants.dart';
+export 'src/engine/dismiss_directions.dart';

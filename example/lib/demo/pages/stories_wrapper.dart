@@ -1,5 +1,6 @@
 import 'package:dismissible_page/dismissible_page.dart';
 import 'package:example/demo/models/models.dart';
+import 'package:example/demo/pages/dismissible_page_demo.dart';
 import 'package:example/demo/pages/story_page.dart';
 import 'package:example/demo/widgets/cubic_page_view.dart';
 import 'package:flutter/material.dart';
@@ -77,23 +78,12 @@ class _StoriesWrapperState extends State<StoriesWrapper>
 
   @override
   Widget build(BuildContext context) {
-    return DismissiblePage(
-      onDismissed: () => Navigator.of(context).maybePop(),
+    // Demo-only pager chrome. PageView / TabBarView are not an Interaction
+    // Mode of this package — content here is never scrollable for dismiss,
+    // so gesture mode is the correct choice.
+    return DismissibleDemo(
+      pageModel: widget.pageModel,
       interactionMode: DismissiblePageInteractionMode.gesture,
-      isFullScreen: widget.pageModel.isFullScreen,
-      minRadius: widget.pageModel.minRadius,
-      maxRadius: widget.pageModel.maxRadius,
-      dragSensitivity: widget.pageModel.dragSensitivity,
-      maxTransformValue: widget.pageModel.maxTransformValue,
-      direction: widget.pageModel.direction,
-      disabled: widget.pageModel.disabled,
-      backgroundColor: widget.pageModel.backgroundColor,
-      dismissThresholds: widget.pageModel.dismissThresholds,
-      dragStartBehavior: widget.pageModel.dragStartBehavior,
-      minScale: widget.pageModel.minScale,
-      startingOpacity: widget.pageModel.startingOpacity,
-      hitTestBehavior: widget.pageModel.behavior,
-      reverseDuration: widget.pageModel.reverseDuration,
       builder: (context, _) => CubicPageView(
         controller: pageCtrl,
         children: stories.map((story) {

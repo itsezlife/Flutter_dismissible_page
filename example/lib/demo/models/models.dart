@@ -4,6 +4,15 @@ import 'package:dismissible_page/dismissible_page.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
+/// Which public page variant the demo Properties panel configures.
+enum DemoMotionKind {
+  /// [ConstrainedDismissiblePage] — axis-locked motion + [DismissDirections].
+  constrained,
+
+  /// [FreeDismissiblePage] — full-plane Free Motion (no directions).
+  free,
+}
+
 class DismissiblePageModel {
   DismissiblePageModel() {
     stories = [
@@ -39,10 +48,19 @@ class DismissiblePageModel {
   double maxTransformValue = .5;
   double dragSensitivity = .7;
   Color backgroundColor = Colors.black;
-  DismissiblePageDismissDirection direction =
-      DismissiblePageDismissDirection.vertical;
-  Map<DismissiblePageDismissDirection, double> dismissThresholds =
-      const <DismissiblePageDismissDirection, double>{};
+
+  /// Constrained vs Free page variant (orthogonal to Interaction Mode).
+  DemoMotionKind motionKind = DemoMotionKind.constrained;
+
+  /// Allowed sides for Constrained Motion. Ignored when [motionKind] is free.
+  DismissDirections directions = DismissDirections.vertical;
+
+  /// Per-side thresholds for Constrained Motion.
+  DismissThresholds thresholds = const DismissThresholds();
+
+  /// Single threshold for Free Motion.
+  double freeThreshold = 0.15;
+
   DragStartBehavior dragStartBehavior = DragStartBehavior.down;
   Duration reverseDuration = const Duration(milliseconds: 200);
   HitTestBehavior behavior = HitTestBehavior.opaque;

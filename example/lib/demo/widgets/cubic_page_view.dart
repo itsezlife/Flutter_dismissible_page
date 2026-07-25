@@ -26,10 +26,21 @@ class _CubicPageViewState extends State<CubicPageView> {
   void initState() {
     _controller = widget.controller;
     currentPageValue = _controller.initialPage.toDouble();
-    _controller.addListener(() {
-      setState(() => currentPageValue = _controller.page!);
-    });
+    _controller.addListener(_handlePageChanged);
     super.initState();
+  }
+
+  void _handlePageChanged() {
+    if (_controller.page case final page?) {
+      setState(() => currentPageValue = page);
+    }
+  }
+
+  @override
+  void dispose() {
+    // Controller ownership stays with the parent that created it.
+    _controller.removeListener(_handlePageChanged);
+    super.dispose();
   }
 
   @override

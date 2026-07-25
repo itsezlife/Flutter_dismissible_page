@@ -22,13 +22,24 @@
 
 </div>
 
-Flutter widget that allows you to dismiss page to any direction, forget the boring back button and
-plain transitions.
+Flutter widget that allows you to dismiss page to any direction, forget the boring back button and plain transitions.
+
+## Concepts
+
+| Term | Meaning |
+|--|--|
+| **Constrained Motion** | Axis-locked drag: each gesture locks onto one axis, then moves only toward sides allowed by **Dismiss Directions**. |
+| **Free Motion** | Full-plane (2D) drag. Independent of Dismiss Directions — use `FreeDismissiblePage`, not a direction flag. |
+| **Dismiss Directions** | Combinable bitmask of atomic sides (`up`, `down`, `startToEnd`, `endToStart`) plus composites (`vertical`, `horizontal`, `all`). Empty set turns drag-dismiss off. |
+| **Interaction Mode** | Orthogonal to motion. `scroll` (default) arbitrates with a nested scrollable; `gesture` is for content that never scrolls. |
+
+`PageView` / `TabBarView` are **not** an Interaction Mode in this package and are
+not supported as a dismiss coordination path in this release.
 
 ## Why This Fork Exists
 
-This fork focuses on fixing long-standing scroll + dismiss gesture conflicts in
-`DismissiblePage`, especially for pages that contain scrollable content.
+This fork focuses on fixing long-standing scroll + dismiss gesture conflicts,
+especially for pages that contain scrollable content.
 
 ### What It Fixes
 
@@ -49,7 +60,7 @@ New behavior (expected):
 
 https://github.com/user-attachments/assets/9ef89285-7d6a-45f9-87aa-d589d8d89c5e
 
-## Features:
+## Features
 
 - Dismiss to any direction
 - Works with nested list view
@@ -64,14 +75,15 @@ https://github.com/user-attachments/assets/9ef89285-7d6a-45f9-87aa-d589d8d89c5e
 #### Don't forget to give it a star ⭐
 
 ## Demo
-| [Live Demo](https://rebrand.ly/gw8nktq) | Multi Direction | Vertical |
+| [Live Demo](https://rebrand.ly/gw8nktq) | Free Motion | Constrained (vertical) |
 |--|--|--|
 | <a href="https://rebrand.ly/gw8nktq"><img width="300" src="https://user-images.githubusercontent.com/26390946/156333539-29aefaf2-5f42-4414-8d8c-1ecbae40c377.png"/></a> | <img src="https://user-images.githubusercontent.com/26390946/161377483-78e5dbaf-678f-4381-a393-52af8180bbcb.gif" /> | <img src="https://user-images.githubusercontent.com/26390946/156391449-a9235d05-bc87-4f51-8a5d-50c44fd0c582.gif"/> |
 
 ## Getting Started
 
-```dart
+### Constrained Motion + scroll Interaction Mode
 
+```dart
 const imageUrl =
     'https://user-images.githubusercontent.com/26390946/155666045-aa93bf48-f8e7-407c-bb19-bc247d9e12bd.png';
 
@@ -107,14 +119,17 @@ class FirstPage extends StatelessWidget {
 class SecondPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return DismissiblePage(
+    // Scroll is the default Interaction Mode — attach the builder's
+    // ScrollController to the primary scrollable.
+    return DismissiblePage.constrained(
       onDismissed: () {
         Navigator.of(context).pop();
       },
-      interactionMode: DismissiblePageInteractionMode.scroll,
-      // Note that scrollable widget inside DismissiblePage might limit the functionality
-      // If scroll direction matches DismissiblePage direction
-      direction: DismissiblePageDismissDirection.multi,
+      // Atomic sides and composites: vertical, horizontal, all, or
+      // DismissDirections.up.add(DismissDirections.startToEnd), etc.
+      // Cross-axis combinations stay Constrained (Axis Lock) — they are
+      // not Free Motion. Use DismissDirections.empty to disable drag-dismiss.
+      directions: DismissDirections.vertical,
       isFullScreen: false,
       builder: (_, scrollController) => SingleChildScrollView(
         controller: scrollController,
@@ -131,104 +146,44 @@ class SecondPage extends StatelessWidget {
 }
 ```
 
-## Properties
+### Free Motion + gesture Interaction Mode
 
-``` dart
-  const DismissiblePage({
-    required this.builder,
-    required this.onDismissed,
-    required this.interactionMode,
-    this.onDragStart,
-    this.onDragEnd,
-    this.onDragUpdate,
-    this.isFullScreen = true,
-    this.disabled = false,
-    this.backgroundColor = Colors.black,
-    this.direction = DismissiblePageDismissDirection.vertical,
-    this.dismissThresholds = const <DismissiblePageDismissDirection, double>{},
-    this.dragStartBehavior = DragStartBehavior.down,
-    this.dragSensitivity = 0.7,
-    this.minRadius = 7,
-    this.minScale = .85,
-    this.maxRadius = 30,
-    this.maxTransformValue = .4,
-    this.startingOpacity = 1,
-    this.hitTestBehavior = HitTestBehavior.opaque,
-    this.reverseDuration = const Duration(milliseconds: 200),
-    Key? key,
-  }) : super(key: key);
+Use Free Motion when the page should drag in the full plane. Prefer gesture
+Interaction Mode when the child never scrolls:
 
-  /// Called when the widget has been dismissed.
-  final VoidCallback onDismissed;
-
-  /// Controls scroll-aware dismissal behavior.
-  final DismissiblePageInteractionMode interactionMode;
-
-  /// Called when the user starts dragging the widget.
-  final VoidCallback? onDragStart;
-
-  /// Called when the user ends dragging the widget.
-  final VoidCallback? onDragEnd;
-
-  /// Called when the widget has been dragged. (0.0 - 1.0)
-  final ValueChanged<DismissiblePageDragUpdateDetails>? onDragUpdate;
-
-  /// If true widget will ignore device padding
-  /// [MediaQuery.paddingOf(context)]
-  final bool isFullScreen;
-
-  /// The minimum amount of scale widget can have while dragging
-  /// Note that scale decreases as user drags
-  final double minScale;
-
-  /// The minimum amount fo border radius widget can have
-  final double minRadius;
-
-  /// The maximum amount of border radius widget can have while dragging
-  /// Note that radius increases as user drags
-  final double maxRadius;
-
-  /// The amount of distance widget is able to drag. value (0.0 - 1.0)
-  final double maxTransformValue;
-
-  /// If true the widget will ignore gestures
-  final bool disabled;
-
-  /// Builder that receives a [ScrollController] for scroll-aware mode.
-  final DismissiblePageBuilder builder;
-
-  /// Background color of [DismissiblePage]
-  final Color backgroundColor;
-
-  /// The amount of opacity [backgroundColor] will have when start dragging the widget.
-  final double startingOpacity;
-
-  /// Whether to enable background opacity animation.
-  final bool enableBackgroundOpacity;
-
-  /// The minimum opacity of the background when the page is displayed.
-  final double minOpacity;
-
-  /// The direction in which the widget can be dismissed.
-  final DismissiblePageDismissDirection direction;
-
-  /// The offset threshold the item has to be dragged in order to be considered
-  /// dismissed. default is [_kDismissThreshold], value (0.0 - 1.0)
-  final Map<DismissiblePageDismissDirection, double> dismissThresholds;
-
-  /// Represents how much responsive dragging the widget will be
-  /// Doesn't work on [DismissiblePageDismissDirection.multi]
-  final double dragSensitivity;
-
-  /// Determines the way that drag start behavior is handled.
-  final DragStartBehavior dragStartBehavior;
-
-  /// The amount of time the widget will spend returning to initial position if widget is not dismissed after drag
-  final Duration reverseDuration;
-
-  /// How to behave during hit tests.
-  ///
-  /// This defaults to [HitTestBehavior.opaque].
-  final HitTestBehavior hitTestBehavior;
+```dart
+DismissiblePage.free(
+  onDismissed: () => Navigator.of(context).pop(),
+  interactionMode: DismissiblePageInteractionMode.gesture,
+  builder: (_, __) => YourStaticContent(),
+);
 ```
 
+## API overview
+
+```dart
+// Constrained — Dismiss Directions + per-side thresholds
+DismissiblePage.constrained(
+  builder: ...,
+  onDismissed: ...,
+  directions: DismissDirections.vertical, // or .all, atoms, .add / .remove
+  thresholds: const DismissThresholds(up: 0.1, down: 0.2),
+  interactionMode: DismissiblePageInteractionMode.scroll, // default
+);
+
+// Free — single threshold, no directions
+DismissiblePage.free(
+  builder: ...,
+  onDismissed: ...,
+  threshold: 0.15,
+  interactionMode: DismissiblePageInteractionMode.gesture,
+);
+```
+
+Shared chrome (both variants): `onDismissed`, `interactionMode`, `disabled`,
+drag callbacks, `isFullScreen`, `backgroundColor`, scale / radius / opacity,
+`dragSensitivity`, `reverseDuration`, `hitTestBehavior`, and related fields.
+
+Dismiss Engine internals (Axis Lock, Scroll Arbitration, presentation mapping)
+live behind `package:dismissible_page/dismissible_page_engine.dart` and are not
+re-exported from the thin root API.

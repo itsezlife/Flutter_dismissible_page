@@ -4,6 +4,7 @@ import 'package:dismissible_page/dismissible_page.dart';
 import 'package:example/demo/models/models.dart';
 import 'package:example/demo/widgets/widgets.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -19,19 +20,25 @@ class DismissiblePageDemoState extends State<DismissiblePageDemo> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-      floatingActionButton: _propertiesButton(),
-      body: SingleChildScrollView(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.end,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(height: max(20, MediaQuery.paddingOf(context).top)),
-            Contacts(pageModel: pageModel),
-            Stories(pageModel: pageModel),
-            LargeImages(pageModel: pageModel),
-          ],
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        systemNavigationBarContrastEnforced: false,
+        systemNavigationBarIconBrightness: .dark,
+      ),
+      child: Scaffold(
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+        floatingActionButton: _propertiesButton(),
+        body: SingleChildScrollView(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.end,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(height: max(20, MediaQuery.paddingOf(context).top)),
+              Contacts(pageModel: pageModel),
+              Stories(pageModel: pageModel),
+              LargeImages(pageModel: pageModel),
+            ],
+          ),
         ),
       ),
     );
@@ -71,97 +78,192 @@ class _PropertiesState extends State<Properties> {
     return DismissibleDemo(
       pageModel: pageModel,
       startingOpacity: .5,
+      // This sheet is scrollable — use the default scroll Interaction Mode.
       interactionMode: DismissiblePageInteractionMode.gesture,
       builder: (context, scrollController) => GestureDetector(
         onTap: () => Navigator.of(context).pop(),
         behavior: HitTestBehavior.translucent,
         child: Padding(
           padding: const EdgeInsets.only(top: 100),
-          child: GestureDetector(
-            onTap: () {},
-            child: Material(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(8),
+          child: Material(
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(8),
+            ),
+            child: SingleChildScrollView(
+              controller: scrollController,
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                bottom: MediaQuery.paddingOf(context).bottom,
               ),
-              child: SingleChildScrollView(
-                controller: scrollController,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 10),
-                    const Title('Bool Parameters'),
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      children: [
-                        AppChip(
-                          onSelected: () => setState(
-                            () => pageModel.isFullScreen =
-                                !pageModel.isFullScreen,
-                          ),
-                          isSelected: pageModel.isFullScreen,
-                          title: 'isFullscreen',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 10),
+                  const Title('Bool Parameters'),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      AppChip(
+                        onSelected: () => setState(
+                          () =>
+                              pageModel.isFullScreen = !pageModel.isFullScreen,
                         ),
-                        AppChip(
-                          onSelected: () => setState(
-                            () => pageModel.disabled = !pageModel.disabled,
-                          ),
-                          isSelected: pageModel.disabled,
-                          title: 'disabled',
+                        isSelected: pageModel.isFullScreen,
+                        title: 'isFullscreen',
+                      ),
+                      AppChip(
+                        onSelected: () => setState(
+                          () => pageModel.disabled = !pageModel.disabled,
                         ),
-                      ],
-                    ),
+                        isSelected: pageModel.disabled,
+                        title: 'disabled',
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  const Title('Motion'),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      AppChip(
+                        onSelected: () => setState(
+                          () =>
+                              pageModel.motionKind = DemoMotionKind.constrained,
+                        ),
+                        isSelected:
+                            pageModel.motionKind == DemoMotionKind.constrained,
+                        title: 'Constrained',
+                      ),
+                      AppChip(
+                        onSelected: () => setState(
+                          () => pageModel.motionKind = DemoMotionKind.free,
+                        ),
+                        isSelected: pageModel.motionKind == DemoMotionKind.free,
+                        title: 'Free',
+                      ),
+                    ],
+                  ),
+                  if (pageModel.motionKind == DemoMotionKind.constrained) ...[
                     const SizedBox(height: 20),
-                    const Title('Dismiss Direction'),
+                    const Title('Dismiss Directions'),
+                    const SizedBox(height: 4),
+                    const _HintText(
+                      'Tap to add or remove sides (multi-select). Cross-axis '
+                      'sets stay Constrained (Axis Lock) — Free Motion is a '
+                      'separate page type. Empty clears all sides.',
+                    ),
                     const SizedBox(height: 10),
                     Wrap(
                       spacing: 10,
                       runSpacing: 10,
-                      children: DismissiblePageDismissDirection.values.map((
-                        item,
-                      ) {
+                      children: _directionChoices.map((choice) {
+                        final selected = _isDirectionChoiceSelected(
+                          pageModel.directions,
+                          choice.directions,
+                        );
                         return AppChip(
                           onSelected: () {
-                            setState(() => pageModel.direction = item);
+                            setState(() {
+                              pageModel.directions = _toggleDirectionChoice(
+                                pageModel.directions,
+                                choice.directions,
+                              );
+                            });
                           },
-                          isSelected: item == pageModel.direction,
-                          title: '$item'.replaceAll(
-                            'DismissiblePageDismissDirection.',
-                            '',
-                          ),
+                          isSelected: selected,
+                          title: choice.label,
                         );
                       }).toList(),
                     ),
-                    const SizedBox(height: 30),
-                    DurationSlider(
-                      title: 'Transition Duration',
-                      duration: pageModel.transitionDuration,
-                      onChanged: (value) {
-                        setState(() => pageModel.transitionDuration = value);
-                      },
-                    ),
-                    const SizedBox(height: 30),
-                    DurationSlider(
-                      title: 'Reverse Transition Duration',
-                      duration: pageModel.reverseTransitionDuration,
-                      onChanged: (value) {
-                        setState(
-                          () => pageModel.reverseTransitionDuration = value,
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 30),
-                    DurationSlider(
-                      title: 'Reverse Animation Duration',
-                      duration: pageModel.reverseDuration,
-                      onChanged: (value) {
-                        setState(() => pageModel.reverseDuration = value);
-                      },
-                    ),
                     const SizedBox(height: 20),
+                    const Title('Dismiss Thresholds'),
+                    const SizedBox(height: 4),
+                    const _HintText(
+                      'Per atomic side for Constrained Motion '
+                      '(progress 0.0–1.0).',
+                    ),
+                    ThresholdSlider(
+                      title: 'up',
+                      value: pageModel.thresholds.up,
+                      onChanged: (value) {
+                        setState(() {
+                          pageModel.thresholds = DismissThresholds(
+                            up: value,
+                            down: pageModel.thresholds.down,
+                            startToEnd: pageModel.thresholds.startToEnd,
+                            endToStart: pageModel.thresholds.endToStart,
+                          );
+                        });
+                      },
+                    ),
+                    ThresholdSlider(
+                      title: 'down',
+                      value: pageModel.thresholds.down,
+                      onChanged: (value) {
+                        setState(() {
+                          pageModel.thresholds = DismissThresholds(
+                            up: pageModel.thresholds.up,
+                            down: value,
+                            startToEnd: pageModel.thresholds.startToEnd,
+                            endToStart: pageModel.thresholds.endToStart,
+                          );
+                        });
+                      },
+                    ),
+                  ] else ...[
+                    const SizedBox(height: 20),
+                    const Title('Dismiss Threshold'),
+                    const SizedBox(height: 4),
+                    const _HintText(
+                      'Single threshold for Free Motion '
+                      '(progress 0.0–1.0).',
+                    ),
+                    ThresholdSlider(
+                      title: 'threshold',
+                      value: pageModel.freeThreshold,
+                      onChanged: (value) {
+                        setState(() => pageModel.freeThreshold = value);
+                      },
+                    ),
                   ],
-                ),
+                  const SizedBox(height: 20),
+                  const Title('Interaction Mode'),
+                  const SizedBox(height: 4),
+                  const _HintText(
+                    'Scroll is the default (this sheet and the Scrollable '
+                    'section). Gesture is for never-scrollable content '
+                    '(stories). PageView / TabBarView are not an '
+                    'Interaction Mode.',
+                  ),
+                  DurationSlider(
+                    title: 'Transition Duration',
+                    duration: pageModel.transitionDuration,
+                    onChanged: (value) {
+                      setState(() => pageModel.transitionDuration = value);
+                    },
+                  ),
+                  DurationSlider(
+                    title: 'Reverse Transition Duration',
+                    duration: pageModel.reverseTransitionDuration,
+                    onChanged: (value) {
+                      setState(
+                        () => pageModel.reverseTransitionDuration = value,
+                      );
+                    },
+                  ),
+                  DurationSlider(
+                    title: 'Reverse Animation Duration',
+                    duration: pageModel.reverseDuration,
+                    onChanged: (value) {
+                      setState(() => pageModel.reverseDuration = value);
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                ],
               ),
             ),
           ),
@@ -318,29 +420,88 @@ class DismissibleDemo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DismissiblePage(
-      onDismissed: () {
-        Navigator.of(context).maybePop();
-      },
-      interactionMode: interactionMode,
-      isFullScreen: pageModel.isFullScreen,
-      minRadius: pageModel.minRadius,
-      maxRadius: pageModel.maxRadius,
-      dragSensitivity: pageModel.dragSensitivity,
-      maxTransformValue: maxTransformValue,
-      direction: pageModel.direction,
-      disabled: pageModel.disabled,
-      backgroundColor: pageModel.backgroundColor,
-      dismissThresholds: pageModel.dismissThresholds,
-      dragStartBehavior: pageModel.dragStartBehavior,
-      minScale: pageModel.minScale,
-      startingOpacity: startingOpacity,
-      hitTestBehavior: pageModel.behavior,
-      reverseDuration: pageModel.reverseDuration,
-      minOpacity: minOpacity,
-      builder: builder,
-    );
+    void onDismissed() => Navigator.of(context).maybePop();
+
+    return switch (pageModel.motionKind) {
+      DemoMotionKind.constrained => DismissiblePage.constrained(
+        onDismissed: onDismissed,
+        directions: pageModel.directions,
+        thresholds: pageModel.thresholds,
+        interactionMode: interactionMode,
+        isFullScreen: pageModel.isFullScreen,
+        minRadius: pageModel.minRadius,
+        maxRadius: pageModel.maxRadius,
+        dragSensitivity: pageModel.dragSensitivity,
+        maxTransformValue: maxTransformValue,
+        disabled: pageModel.disabled,
+        backgroundColor: pageModel.backgroundColor,
+        dragStartBehavior: pageModel.dragStartBehavior,
+        minScale: pageModel.minScale,
+        startingOpacity: startingOpacity,
+        hitTestBehavior: pageModel.behavior,
+        reverseDuration: pageModel.reverseDuration,
+        minOpacity: minOpacity,
+        builder: builder,
+      ),
+      DemoMotionKind.free => DismissiblePage.free(
+        onDismissed: onDismissed,
+        threshold: pageModel.freeThreshold,
+        interactionMode: interactionMode,
+        isFullScreen: pageModel.isFullScreen,
+        minRadius: pageModel.minRadius,
+        maxRadius: pageModel.maxRadius,
+        dragSensitivity: pageModel.dragSensitivity,
+        maxTransformValue: maxTransformValue,
+        disabled: pageModel.disabled,
+        backgroundColor: pageModel.backgroundColor,
+        dragStartBehavior: pageModel.dragStartBehavior,
+        minScale: pageModel.minScale,
+        startingOpacity: startingOpacity,
+        hitTestBehavior: pageModel.behavior,
+        reverseDuration: pageModel.reverseDuration,
+        minOpacity: minOpacity,
+        builder: builder,
+      ),
+    };
   }
+}
+
+/// Demo presets for atomic and composite [DismissDirections].
+final _directionChoices = <({String label, DismissDirections directions})>[
+  (label: 'vertical', directions: DismissDirections.vertical),
+  (label: 'horizontal', directions: DismissDirections.horizontal),
+  (label: 'up', directions: DismissDirections.up),
+  (label: 'down', directions: DismissDirections.down),
+  (label: 'startToEnd', directions: DismissDirections.startToEnd),
+  (label: 'endToStart', directions: DismissDirections.endToStart),
+  (label: 'all', directions: DismissDirections.all),
+  (label: 'empty', directions: DismissDirections.empty),
+  (
+    label: 'up + startToEnd',
+    directions: DismissDirections.up.add(DismissDirections.startToEnd),
+  ),
+];
+
+bool _isDirectionChoiceSelected(
+  DismissDirections current,
+  DismissDirections choice,
+) {
+  if (choice == DismissDirections.empty) {
+    return !current.allowsDragDismissal;
+  }
+  return current.contains(choice);
+}
+
+DismissDirections _toggleDirectionChoice(
+  DismissDirections current,
+  DismissDirections choice,
+) {
+  if (choice == DismissDirections.empty) {
+    return DismissDirections.empty;
+  }
+  return current.contains(choice)
+      ? current.remove(choice)
+      : current.add(choice);
 }
 
 class Title extends StatelessWidget {
@@ -355,6 +516,66 @@ class Title extends StatelessWidget {
         fontSize: 18,
         fontWeight: FontWeight.w500,
       ),
+    );
+  }
+}
+
+class _HintText extends StatelessWidget {
+  const _HintText(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: GoogleFonts.poppins(
+        fontSize: 12,
+        color: Colors.black54,
+      ),
+    );
+  }
+}
+
+class ThresholdSlider extends StatelessWidget {
+  const ThresholdSlider({
+    required this.title,
+    required this.value,
+    required this.onChanged,
+    super.key,
+  });
+
+  final String title;
+  final double value;
+  final ValueChanged<double> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              '$title — ',
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            Text(
+              value.toStringAsFixed(2),
+              style: GoogleFonts.poppins(fontSize: 14),
+            ),
+          ],
+        ),
+        Slider(
+          value: value,
+          divisions: 20,
+          label: value.toStringAsFixed(2),
+          onChanged: onChanged,
+        ),
+      ],
     );
   }
 }
@@ -384,13 +605,12 @@ class AppChip extends StatelessWidget {
         onSelected: (_) => onSelected(),
         selected: isSelected,
         padding: padding,
+        labelStyle: GoogleFonts.poppins(
+          fontSize: fontSize,
+          fontWeight: fontWeight,
+        ),
         label: Text(
           title,
-          style: GoogleFonts.poppins(
-            color: isSelected ? Colors.white : Colors.black,
-            fontSize: fontSize,
-            fontWeight: fontWeight,
-          ),
         ),
       ),
     );
@@ -497,34 +717,34 @@ class LargeImageDetailsPage extends StatelessWidget {
       startingOpacity: .6,
       maxTransformValue: 1,
       builder: (context, scrollController) => Scaffold(
-        body: SafeArea(
-          top: false,
-          child: SingleChildScrollView(
-            controller: scrollController,
-            physics: scrollPhysics,
-            child: Column(
-              children: [
-                Hero(
-                  tag: imagePath,
-                  child: Image.asset(imagePath, fit: BoxFit.cover),
-                ),
-                ...List.generate(40, (index) => index + 1).map((index) {
-                  return SizedBox(
-                    height: 50,
-                    width: 300,
-                    child: ListTile(
-                      title: Text(
-                        'Item $index',
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                        ),
+        body: SingleChildScrollView(
+          controller: scrollController,
+          physics: scrollPhysics,
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.paddingOf(context).bottom,
+          ),
+          child: Column(
+            children: [
+              Hero(
+                tag: imagePath,
+                child: Image.asset(imagePath, fit: BoxFit.cover),
+              ),
+              ...List.generate(40, (index) => index + 1).map((index) {
+                return SizedBox(
+                  height: 50,
+                  width: 300,
+                  child: ListTile(
+                    title: Text(
+                      'Item $index',
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
-                  );
-                }),
-              ],
-            ),
+                  ),
+                );
+              }),
+            ],
           ),
         ),
       ),

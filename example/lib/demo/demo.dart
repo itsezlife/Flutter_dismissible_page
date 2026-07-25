@@ -26,6 +26,7 @@ class AppView extends StatelessWidget {
               activeTrackColor: accentColor,
               activeTickMarkColor: accentColor,
               thumbColor: accentColor,
+              padding: const .symmetric(vertical: 16),
               inactiveTrackColor: accentColor.withValues(alpha: .2),
             ),
           ),

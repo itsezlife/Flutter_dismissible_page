@@ -4,6 +4,7 @@ import 'dart:math';
 
 import 'package:dismissible_page/dismissible_page_engine.dart';
 import 'package:dismissible_page/src/widgets/dismissible_page_builder.dart';
+import 'package:dismissible_page/src/widgets/dismissible_page_chrome.dart';
 import 'package:dismissible_page/src/widgets/dismissible_page_dismiss_direction.dart';
 import 'package:dismissible_page/src/widgets/dismissible_page_drag_update_details.dart';
 import 'package:dismissible_page/src/widgets/dismissible_page_helpers.dart';
@@ -206,10 +207,18 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
     minOpacity: widget.minOpacity,
   );
 
-  DragPresentation get _presentation => _presentationConfig.map(
-    progress: _dragValue.clamp(0.0, 1.0),
-    offset: _offset,
-  );
+  DragPresentation get _presentation {
+    // Constrained motion stores a fractional drag offset; chrome expects 
+    // pixels.
+    final fractional = _offset;
+    return _presentationConfig.map(
+      progress: _dragValue.clamp(0.0, 1.0),
+      offset: Offset(
+        fractional.dx * _screenSize.width,
+        fractional.dy * _screenSize.height,
+      ),
+    );
+  }
 
   DismissiblePageDragUpdateDetails get _details =>
       DismissiblePageDragUpdateDetails(
@@ -575,37 +584,12 @@ class _SingleAxisDismissiblePageState extends State<SingleAxisDismissiblePage>
         final animatedChild = AnimatedBuilder(
           animation: _moveAnimation,
           builder: (context, child) {
-            final presentation = _presentation;
-            final backgroundColor = switch ((
-              widget.backgroundColor,
-              widget.enableBackgroundOpacity,
-            )) {
-              (final color?, _) when color == Colors.transparent => color,
-              (final color?, true) =>
-                color.withValues(alpha: presentation.opacity),
-              (final color, _) => color,
-            };
-
-            Widget content = FractionalTranslation(
-              translation: presentation.offset,
-              child: Transform.scale(
-                scale: presentation.scale,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.all(
-                    Radius.circular(presentation.radius),
-                  ),
-                  child: child,
-                ),
-              ),
-            );
-
-            if (backgroundColor case final backgroundColor?) {
-              content = ColoredBox(color: backgroundColor, child: content);
-            }
-
-            return Padding(
-              padding: widget.contentPadding,
-              child: content,
+            return DismissiblePageChrome(
+              presentation: _presentation,
+              backgroundColor: widget.backgroundColor,
+              enableBackgroundOpacity: widget.enableBackgroundOpacity,
+              contentPadding: widget.contentPadding,
+              child: child!,
             );
           },
           child: widget.builder(context, scrollController),

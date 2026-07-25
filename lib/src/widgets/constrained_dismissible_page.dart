@@ -44,7 +44,10 @@ part of 'dismissible_page.dart';
 /// [interactionMode] is orthogonal to motion:
 /// - [DismissiblePageInteractionMode.scroll] (default) coordinates dismissal
 ///   with a nested scrollable via an attachable [ScrollController] handed to
-///   [builder].
+///   [builder]. Scroll Arbitration serves the sides on that scrollable's own
+///   axis; when [directions] also allow a side off that axis, a cross-axis
+///   drag recognizer coexists with arbitration so those sides stay live while
+///   mid-list on-axis drags keep scrolling the inner content.
 /// - [DismissiblePageInteractionMode.gesture] handles content that never
 ///   scrolls with a direct drag recognizer.
 /// {@endtemplate}
@@ -123,9 +126,8 @@ class _ConstrainedDismissiblePageState
 
   /// Raw drag progress along the locked axis (0.0–1.0), the value compared
   /// against the Dismiss Threshold.
-  double get _progress => _axisExtent == 0
-      ? 0
-      : (_dragExtent.abs() / _axisExtent).clamp(0.0, 1.0);
+  double get _progress =>
+      _axisExtent == 0 ? 0 : (_dragExtent.abs() / _axisExtent).clamp(0.0, 1.0);
 
   DismissiblePageDragUpdateDetails _detailsForExtent(double extent) {
     final axisExtent = _axisExtent;
@@ -160,16 +162,22 @@ class _ConstrainedDismissiblePageState
   }
 
   @override
-  void handleDragStart([Offset? _]) {
+  void handleDragStart([Axis? axis]) {
     if (!dismissEnabled) return;
     widget.onDragStart?.call();
     dragUnderway = true;
-    if (settleController.isAnimating) {
-      settleController.stop();
-    } else {
-      _publishExtent(0);
-      _lock = null;
-    }
+
+    // Catching a settling page continues the previous gesture, but only when
+    // the new drag is on the locked axis. A lock and its extent belong to one
+    // axis, so a gesture on the other axis starts clean — otherwise an
+    // on-axis drag could finish a cross-axis dismissal left mid-settle.
+    final continuesLockedAxis =
+        settleController.isAnimating && (axis == null || _lock?.axis == axis);
+    settleController.stop();
+    if (continuesLockedAxis) return;
+
+    _publishExtent(0);
+    _lock = null;
   }
 
   @override
@@ -228,6 +236,20 @@ class _ConstrainedDismissiblePageState
     _lock = null;
   }
 
+  /// Mounts a cross-axis shell alongside Scroll Arbitration when some allowed
+  /// side leaves the nested scrollable's axis.
+  ///
+  /// When every allowed side lies on the scroll axis, arbitration already
+  /// serves them all and nothing extra joins the gesture arena.
+  @override
+  Widget wrapWithCoexistingShell(Widget child) {
+    if (innerScrollAxis case final scrollAxis?
+        when widget.directions.leavesAxis(scrollAxis)) {
+      return wrapWithAxisPartitionedGestures(child, flipAxis(scrollAxis));
+    }
+    return child;
+  }
+
   @override
   void handleScrollDragUpdate(double delta, ScrollPosition position) {
     final scrollAxis = axisDirectionToAxis(position.axisDirection);
@@ -236,9 +258,24 @@ class _ConstrainedDismissiblePageState
       Axis.horizontal => Offset(delta, 0),
     };
 
-    // Axis Lock.constrain applies reverse-to-origin, clamps single-side sets
-    // at origin, and may cross into the other allowed side. Do not snap to
-    // origin here — that would discard permitted side flips.
+    // Stock single-axis / Free: when a reverse scroll delta would reach or
+    // cross origin and the nested list can scroll, snap to rest and let the
+    // leftover drive the list — do not flip into the opposite dismiss side.
+    // Axis Lock still allows origin crossing on the gesture path.
+    final hasScrollableContent =
+        (position.maxScrollExtent - position.minScrollExtent).abs() >
+        _DismissiblePageState.originEpsilon;
+    final isReturning =
+        (_dragExtent > 0 && delta < 0) || (_dragExtent < 0 && delta > 0);
+    final reachesOrigin =
+        isReturning &&
+        (delta.abs() + _DismissiblePageState.originEpsilon >=
+            _dragExtent.abs());
+    if (hasScrollableContent && reachesOrigin) {
+      _publishExtent(0);
+      return;
+    }
+
     applyDelta(delta2D);
   }
 

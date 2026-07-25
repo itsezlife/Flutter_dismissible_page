@@ -12,6 +12,23 @@ void main() {
   /// tests and are not re-encoded here.
   Widget wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
 
+  /// A vertical scrollable tall enough to scroll on the 800x600 test screen.
+  Widget verticalList(ScrollController controller) => SingleChildScrollView(
+    controller: controller,
+    child: const SizedBox(height: 2200, child: FlutterLogo()),
+  );
+
+  /// Wraps [child] in an ancestor horizontal drag recognizer.
+  ///
+  /// The ancestor only wins the gesture arena when the page itself mounts no
+  /// competing cross-axis recognizer, so `sawDrag` is how these tests observe
+  /// dual-mount versus arbitration-only from the outside.
+  Widget withAncestorHorizontalDrag(Widget child, VoidCallback sawDrag) =>
+      GestureDetector(
+        onHorizontalDragUpdate: (_) => sawDrag(),
+        child: child,
+      );
+
   testWidgets('exposes ConstrainedDismissiblePage with Dismiss Directions', (
     tester,
   ) async {
@@ -39,10 +56,7 @@ void main() {
           onDismissed: () {},
           builder: (context, controller) {
             provided = controller;
-            return SingleChildScrollView(
-              controller: controller,
-              child: const SizedBox(height: 2200, child: FlutterLogo()),
-            );
+            return verticalList(controller);
           },
         ),
       ),
@@ -258,10 +272,7 @@ void main() {
       wrap(
         ConstrainedDismissiblePage(
           onDismissed: () => dismissed = true,
-          builder: (context, controller) => SingleChildScrollView(
-            controller: controller,
-            child: const SizedBox(height: 2200, child: FlutterLogo()),
-          ),
+          builder: (context, controller) => verticalList(controller),
         ),
       ),
     );
@@ -288,10 +299,7 @@ void main() {
           ConstrainedDismissiblePage(
             onDismissed: () {},
             onDragUpdate: (details) => dragValues.add(details.overallDragValue),
-            builder: (context, controller) => SingleChildScrollView(
-              controller: controller,
-              child: const SizedBox(height: 2200, child: FlutterLogo()),
-            ),
+            builder: (context, controller) => verticalList(controller),
           ),
         ),
       );
@@ -319,19 +327,20 @@ void main() {
   );
 
   testWidgets(
-    'scroll mode can cross origin into the other allowed vertical side',
+    'scroll mode snaps at origin instead of crossing into the other side',
     (tester) async {
       Offset? lastOffset;
+      late ScrollController provided;
 
       await tester.pumpWidget(
         wrap(
           ConstrainedDismissiblePage(
             onDismissed: () {},
             onDragUpdate: (details) => lastOffset = details.offset,
-            builder: (context, controller) => SingleChildScrollView(
-              controller: controller,
-              child: const SizedBox(height: 2200, child: FlutterLogo()),
-            ),
+            builder: (context, controller) {
+              provided = controller;
+              return verticalList(controller);
+            },
           ),
         ),
       );
@@ -340,11 +349,53 @@ void main() {
       final gesture = await tester.startGesture(
         tester.getCenter(find.byType(SingleChildScrollView)),
       );
+      // Overscroll at the top starts a downward dismiss.
       await gesture.moveBy(const Offset(0, 80));
       await tester.pump();
       expect(lastOffset?.dy, greaterThan(0));
 
-      // Past origin into the up side — offset sign must flip.
+      // A reverse large enough to cross origin must snap to rest — not flip
+      // into the up side. Leftover of this frame is dropped (stock/Free);
+      // later on-axis motion scrolls the list.
+      await gesture.moveBy(const Offset(0, -160));
+      await tester.pump();
+      expect(lastOffset?.dy, 0);
+
+      await gesture.moveBy(const Offset(0, -40));
+      await tester.pump();
+      expect(lastOffset?.dy, 0);
+      expect(provided.offset, greaterThan(0));
+
+      await gesture.up();
+      await tester.pumpAndSettle();
+    },
+  );
+
+  testWidgets(
+    'gesture mode can cross origin into the other allowed vertical side',
+    (tester) async {
+      Offset? lastOffset;
+
+      await tester.pumpWidget(
+        wrap(
+          ConstrainedDismissiblePage(
+            interactionMode: DismissiblePageInteractionMode.gesture,
+            onDismissed: () {},
+            onDragUpdate: (details) => lastOffset = details.offset,
+            builder: (context, controller) => const FlutterLogo(),
+          ),
+        ),
+      );
+
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byType(ConstrainedDismissiblePage)),
+      );
+      await gesture.moveBy(const Offset(0, 80));
+      await tester.pump();
+      expect(lastOffset?.dy, greaterThan(0));
+
+      // Without a nested scrollable, Axis Lock may cross into the other
+      // allowed side on a bidirectional set.
       await gesture.moveBy(const Offset(0, -160));
       await tester.pump();
       expect(lastOffset?.dy, lessThan(0));
@@ -353,6 +404,263 @@ void main() {
       await tester.pumpAndSettle();
     },
   );
+
+  testWidgets(
+    'scroll mode dismisses across a side that leaves the scroll axis',
+    (tester) async {
+      var dismissed = false;
+      var ancestorSawDrag = false;
+
+      await tester.pumpWidget(
+        wrap(
+          withAncestorHorizontalDrag(
+            ConstrainedDismissiblePage(
+              directions: DismissDirections.all,
+              onDismissed: () => dismissed = true,
+              builder: (context, controller) => verticalList(controller),
+            ),
+            () => ancestorSawDrag = true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // 300px on an 800-wide screen is ~0.375 progress, past the default 0.15
+      // threshold for the startToEnd side.
+      await tester.drag(
+        find.byType(SingleChildScrollView),
+        const Offset(300, 0),
+      );
+      await tester.pumpAndSettle();
+
+      expect(dismissed, isTrue);
+      // The page's own cross-axis recognizer won the arena, not the ancestor.
+      expect(ancestorSawDrag, isFalse);
+    },
+  );
+
+  testWidgets('scroll mode partitions the shell against a horizontal list', (
+    tester,
+  ) async {
+    var dismissed = false;
+    late ScrollController provided;
+
+    await tester.pumpWidget(
+      wrap(
+        ConstrainedDismissiblePage(
+          directions: DismissDirections.all,
+          onDismissed: () => dismissed = true,
+          builder: (context, controller) {
+            provided = controller;
+            return SingleChildScrollView(
+              controller: controller,
+              scrollDirection: Axis.horizontal,
+              child: const SizedBox(width: 2200, child: FlutterLogo()),
+            );
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // On-axis for a horizontal list: the list keeps the gesture.
+    await tester.drag(
+      find.byType(SingleChildScrollView),
+      const Offset(-200, 0),
+    );
+    await tester.pumpAndSettle();
+    expect(provided.offset, greaterThan(0));
+    expect(dismissed, isFalse);
+
+    // Vertical is now the cross axis, so the shell serves it.
+    await tester.drag(
+      find.byType(SingleChildScrollView),
+      const Offset(0, 200),
+    );
+    await tester.pumpAndSettle();
+    expect(dismissed, isTrue);
+  });
+
+  testWidgets('scroll mode keeps mid-list on-axis drags scrolling the list', (
+    tester,
+  ) async {
+    var dismissed = false;
+    late ScrollController provided;
+
+    await tester.pumpWidget(
+      wrap(
+        ConstrainedDismissiblePage(
+          directions: DismissDirections.all,
+          onDismissed: () => dismissed = true,
+          builder: (context, controller) {
+            provided = controller;
+            return verticalList(controller);
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // On-axis and away from the boundary the inner list keeps the gesture,
+    // even though a cross-axis recognizer is mounted alongside arbitration.
+    await tester.drag(
+      find.byType(SingleChildScrollView),
+      const Offset(0, -200),
+    );
+    await tester.pumpAndSettle();
+
+    expect(provided.offset, greaterThan(0));
+    expect(dismissed, isFalse);
+  });
+
+  testWidgets('scroll mode still dismisses on-axis at the edge under a shell', (
+    tester,
+  ) async {
+    var dismissed = false;
+
+    await tester.pumpWidget(
+      wrap(
+        ConstrainedDismissiblePage(
+          directions: DismissDirections.all,
+          onDismissed: () => dismissed = true,
+          builder: (context, controller) => verticalList(controller),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // On-axis dismissal is still Scroll Arbitration's job at the boundary,
+    // even with a cross-axis recognizer mounted alongside it.
+    await tester.drag(
+      find.byType(SingleChildScrollView),
+      const Offset(0, 220),
+    );
+    await tester.pumpAndSettle();
+
+    expect(dismissed, isTrue);
+  });
+
+  testWidgets('a cross-axis drag cannot inherit a settling on-axis lock', (
+    tester,
+  ) async {
+    Offset? lastOffset;
+
+    await tester.pumpWidget(
+      wrap(
+        ConstrainedDismissiblePage(
+          directions: DismissDirections.all,
+          onDismissed: () {},
+          onDragUpdate: (details) => lastOffset = details.offset,
+          builder: (context, controller) => verticalList(controller),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final center = tester.getCenter(find.byType(SingleChildScrollView));
+
+    // Overscroll at the top starts an on-axis dismiss, released short of the
+    // threshold so it settles back.
+    final onAxis = await tester.startGesture(center);
+    await onAxis.moveBy(const Offset(0, 20));
+    await onAxis.moveBy(const Offset(0, 40));
+    await tester.pump();
+    expect(lastOffset?.dy, greaterThan(0));
+    await onAxis.up();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    // Interrupt the settle with a cross-axis drag. The vertical lock and its
+    // extent belong to the finished gesture, so this one must start clean
+    // instead of freezing on an axis it cannot move.
+    final crossAxis = await tester.startGesture(center);
+    await crossAxis.moveBy(const Offset(100, 0));
+    await tester.pump();
+
+    expect(lastOffset?.dy, 0);
+    expect(lastOffset?.dx, greaterThan(0));
+
+    await crossAxis.up();
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('scroll mode arbitrates alone when every side is on-axis', (
+    tester,
+  ) async {
+    var dismissed = false;
+    var ancestorSawDrag = false;
+
+    await tester.pumpWidget(
+      wrap(
+        withAncestorHorizontalDrag(
+          ConstrainedDismissiblePage(
+            onDismissed: () => dismissed = true,
+            builder: (context, controller) => verticalList(controller),
+          ),
+          () => ancestorSawDrag = true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.drag(
+      find.byType(SingleChildScrollView),
+      const Offset(300, 0),
+    );
+    await tester.pumpAndSettle();
+
+    // Vertical directions on a vertical list: no cross-axis recognizer
+    // competes, so the horizontal drag reaches the ancestor untouched.
+    expect(ancestorSawDrag, isTrue);
+    expect(dismissed, isFalse);
+  });
+
+  testWidgets('scroll mode mounts no shell when dismissal is turned off', (
+    tester,
+  ) async {
+    for (final page in [
+      (label: 'disabled', disabled: true, directions: DismissDirections.all),
+      (
+        label: 'empty directions',
+        disabled: false,
+        directions: DismissDirections.empty,
+      ),
+    ]) {
+      var dismissed = false;
+      var ancestorSawDrag = false;
+
+      await tester.pumpWidget(
+        wrap(
+          withAncestorHorizontalDrag(
+            ConstrainedDismissiblePage(
+              key: ValueKey(page.label),
+              disabled: page.disabled,
+              directions: page.directions,
+              onDismissed: () => dismissed = true,
+              builder: (context, controller) => verticalList(controller),
+            ),
+            () => ancestorSawDrag = true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.drag(
+        find.byType(SingleChildScrollView),
+        const Offset(300, 0),
+      );
+      await tester.pumpAndSettle();
+      expect(ancestorSawDrag, isTrue, reason: page.label);
+
+      // Overscroll at the top boundary is passed to the list, not consumed.
+      await tester.drag(
+        find.byType(SingleChildScrollView),
+        const Offset(0, 220),
+      );
+      await tester.pumpAndSettle();
+      expect(dismissed, isFalse, reason: page.label);
+    }
+  });
 
   testWidgets('a reversing gesture eases the settle with the given curve', (
     tester,

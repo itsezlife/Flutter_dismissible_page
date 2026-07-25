@@ -170,6 +170,34 @@ void main() {
       );
     });
 
+    test('reports which axes the allowed sides lie on', () {
+      expect(DismissDirections.vertical.allowsAxis(Axis.vertical), isTrue);
+      expect(DismissDirections.vertical.allowsAxis(Axis.horizontal), isFalse);
+      expect(DismissDirections.up.allowsAxis(Axis.vertical), isTrue);
+      expect(DismissDirections.endToStart.allowsAxis(Axis.horizontal), isTrue);
+      expect(DismissDirections.all.allowsAxis(Axis.vertical), isTrue);
+      expect(DismissDirections.all.allowsAxis(Axis.horizontal), isTrue);
+      expect(DismissDirections.empty.allowsAxis(Axis.vertical), isFalse);
+      expect(DismissDirections.empty.allowsAxis(Axis.horizontal), isFalse);
+    });
+
+    test('reports when an allowed side leaves a given axis', () {
+      // Every allowed side lies on the vertical axis.
+      expect(DismissDirections.vertical.leavesAxis(Axis.vertical), isFalse);
+      // A cross-axis side leaves the vertical axis.
+      expect(
+        DismissDirections.up
+            .add(DismissDirections.startToEnd)
+            .leavesAxis(Axis.vertical),
+        isTrue,
+      );
+      expect(DismissDirections.all.leavesAxis(Axis.vertical), isTrue);
+      expect(DismissDirections.all.leavesAxis(Axis.horizontal), isTrue);
+      expect(DismissDirections.horizontal.leavesAxis(Axis.vertical), isTrue);
+      expect(DismissDirections.horizontal.leavesAxis(Axis.horizontal), isFalse);
+      expect(DismissDirections.empty.leavesAxis(Axis.vertical), isFalse);
+    });
+
     test('uses the threshold configured for each locked atomic side', () {
       const thresholds = DismissThresholds(
         up: 0.2,

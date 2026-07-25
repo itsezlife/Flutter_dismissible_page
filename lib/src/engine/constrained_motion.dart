@@ -178,6 +178,22 @@ final class AxisLock {
 
 /// Axis-lock behavior for Constrained Motion.
 extension ConstrainedMotionDirections on DismissDirections {
+  /// Whether any allowed side lies on [axis].
+  bool allowsAxis(Axis axis) => switch (axis) {
+    Axis.vertical =>
+      contains(DismissDirections.up) || contains(DismissDirections.down),
+    Axis.horizontal =>
+      contains(DismissDirections.startToEnd) ||
+          contains(DismissDirections.endToStart),
+  };
+
+  /// Whether any allowed side leaves [axis] — i.e. lies on the other axis.
+  ///
+  /// Under the `scroll` Interaction Mode this decides whether Scroll
+  /// Arbitration alone can serve every allowed side, or whether an off-axis
+  /// gesture shell has to coexist with it.
+  bool leavesAxis(Axis axis) => allowsAxis(flipAxis(axis));
+
   /// Resolves the stable axis and atomic side for an initial gesture [delta].
   ///
   /// When both axes are permitted, an exactly diagonal delta has no dominant
@@ -187,11 +203,8 @@ extension ConstrainedMotionDirections on DismissDirections {
     required Offset delta,
     required TextDirection textDirection,
   }) {
-    final allowsVertical =
-        contains(DismissDirections.up) || contains(DismissDirections.down);
-    final allowsHorizontal =
-        contains(DismissDirections.startToEnd) ||
-        contains(DismissDirections.endToStart);
+    final allowsVertical = allowsAxis(Axis.vertical);
+    final allowsHorizontal = allowsAxis(Axis.horizontal);
 
     final axis = switch ((allowsHorizontal, allowsVertical)) {
       (false, false) => null,

@@ -99,7 +99,7 @@ class _FreeDismissiblePageState
   }
 
   @override
-  void handleDragStart([Offset? _]) {
+  void handleDragStart([Axis? _]) {
     if (!dismissEnabled) return;
     widget.onDragStart?.call();
     dragUnderway = true;

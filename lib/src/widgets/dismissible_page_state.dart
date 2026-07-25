@@ -19,6 +19,12 @@ abstract class _DismissiblePageState<W extends DismissiblePage> extends State<W>
   bool dragUnderway = false;
   bool canInnerContentScroll = false;
 
+  /// Axis of the nested scrollable, or null before it reports one.
+  ///
+  /// Scroll Arbitration owns this axis; variants consult it to decide whether
+  /// an off-axis gesture shell has to coexist with arbitration.
+  Axis? innerScrollAxis;
+
   /// Whether drag-to-dismiss is currently allowed for this variant.
   bool get dismissEnabled;
 
@@ -79,11 +85,17 @@ abstract class _DismissiblePageState<W extends DismissiblePage> extends State<W>
 
   void checkCanInnerContentScroll() {
     if (!scrollController.hasClients) return;
-    final previous = canInnerContentScroll;
-    canInnerContentScroll = scrollController.position.maxScrollExtent > 0;
-    // Structural flip (gesture shell vs scroll arbitration) — the only
-    // setState this State needs.
-    if (previous != canInnerContentScroll) setState(() {});
+    final position = scrollController.position;
+    final previousCanScroll = canInnerContentScroll;
+    final previousAxis = innerScrollAxis;
+    canInnerContentScroll = position.maxScrollExtent > 0;
+    innerScrollAxis = axisDirectionToAxis(position.axisDirection);
+    // Structural flip (which gesture shells are mounted) — the only setState
+    // this State needs.
+    if (previousCanScroll != canInnerContentScroll ||
+        previousAxis != innerScrollAxis) {
+      setState(() {});
+    }
   }
 
   void dragListener() {
@@ -114,7 +126,7 @@ abstract class _DismissiblePageState<W extends DismissiblePage> extends State<W>
     ).dispatch(context);
   }
 
-  void handleScrollDragStart() => handleDragStart();
+  void handleScrollDragStart() => handleDragStart(innerScrollAxis);
 
   void handleScrollDragEnd() => handleDragEnd();
 
@@ -124,7 +136,11 @@ abstract class _DismissiblePageState<W extends DismissiblePage> extends State<W>
   /// Called when a reverse settle finishes; reset motion locals here.
   void onSettleCompleted();
 
-  void handleDragStart([Offset? position]);
+  /// Called when a dismiss drag begins.
+  ///
+  /// [axis] is the axis the incoming gesture is confined to, or null when the
+  /// shell tracks the full plane.
+  void handleDragStart([Axis? axis]);
 
   void applyDelta(Offset delta);
 
@@ -174,7 +190,9 @@ abstract class _DismissiblePageState<W extends DismissiblePage> extends State<W>
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) dispatchDismissed();
       },
-      child: useScrollArbitration ? chrome : wrapWithGestures(chrome),
+      child: useScrollArbitration
+          ? wrapWithCoexistingShell(chrome)
+          : wrapWithGestures(chrome),
     );
   }
 
@@ -183,10 +201,46 @@ abstract class _DismissiblePageState<W extends DismissiblePage> extends State<W>
     return GestureDetector(
       behavior: widget.hitTestBehavior,
       dragStartBehavior: widget.dragStartBehavior,
-      onPanStart: (details) => handleDragStart(details.globalPosition),
+      onPanStart: (_) => handleDragStart(),
       onPanUpdate: (details) => applyDelta(details.delta),
       onPanEnd: handleDragEnd,
       child: child,
     );
+  }
+
+  /// Wraps [child] in the gesture shell that coexists with Scroll Arbitration.
+  ///
+  /// Arbitration already serves the nested scrollable's axis, so the default
+  /// is no shell at all. Variants that also need dismissal off that axis
+  /// override this.
+  Widget wrapWithCoexistingShell(Widget child) => child;
+
+  /// A drag recognizer confined to [axis].
+  ///
+  /// Partitioning by axis is what lets a shell coexist with Scroll
+  /// Arbitration: Flutter's gesture arena routes on-axis drags to the nested
+  /// scrollable and cross-axis drags here.
+  Widget wrapWithAxisPartitionedGestures(Widget child, Axis axis) {
+    void start(DragStartDetails _) => handleDragStart(axis);
+    void update(DragUpdateDetails details) => applyDelta(details.delta);
+
+    return switch (axis) {
+      Axis.horizontal => GestureDetector(
+        behavior: widget.hitTestBehavior,
+        dragStartBehavior: widget.dragStartBehavior,
+        onHorizontalDragStart: start,
+        onHorizontalDragUpdate: update,
+        onHorizontalDragEnd: handleDragEnd,
+        child: child,
+      ),
+      Axis.vertical => GestureDetector(
+        behavior: widget.hitTestBehavior,
+        dragStartBehavior: widget.dragStartBehavior,
+        onVerticalDragStart: start,
+        onVerticalDragUpdate: update,
+        onVerticalDragEnd: handleDragEnd,
+        child: child,
+      ),
+    };
   }
 }

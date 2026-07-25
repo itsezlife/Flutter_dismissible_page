@@ -1,3 +1,29 @@
+## Unreleased
+- BREAKING: Replaces the legacy `DismissiblePageDismissDirection` facade with a
+  sealed page API: `ConstrainedDismissiblePage` (Constrained Motion + composable
+  `DismissDirections`) and `FreeDismissiblePage` (Free Motion). Prefer
+  `DismissiblePage.constrained` / `DismissiblePage.free`.
+- BREAKING: Removes `multi` / `none` as direction values. Free Motion is its own
+  page type; `DismissDirections.empty` disables drag-dismiss.
+- BREAKING: Constrained pages take `DismissThresholds` (per atomic side); Free
+  pages take a single `threshold`.
+- Interaction Mode remains `scroll` (default) and `gesture`. PageView /
+  TabBarView are not modeled as an Interaction Mode.
+- Under Interaction Mode `scroll`, a Constrained page whose `DismissDirections`
+  include a side off the nested scrollable's axis now mounts an axis-partitioned
+  cross-axis recognizer alongside Scroll Arbitration. Cross-axis sides dismiss
+  again, while mid-list on-axis drags still scroll the inner content and on-axis
+  dismissal stays an edge-overscroll behavior. When every allowed side lies on
+  the scroll axis, coordination stays arbitration-only.
+- FIX: A Constrained drag that interrupts a reverse settle on the other axis now
+  starts from origin instead of inheriting the previous gesture's Axis Lock,
+  which used to freeze the page and judge the release against the wrong side's
+  Dismiss Threshold.
+- FIX: Under scroll Interaction Mode with a nested scrollable, Constrained reverse
+  past origin snaps to rest and hands further on-axis motion to the list (stock
+  single-axis / Free behavior) instead of flipping into the opposite dismiss
+  side. Gesture mode still allows origin crossing when both sides are permitted.
+
 ## 1.1.0
 - BREAKING: Introduces custom ScrollController with ScrollPosition to delegate `applyUserOffset` to updating the dimissible page offset/extent, based on various conditions and gesutes, which fixed all sort of issues when having scrollable content inside the dimissible page. Now you MUST pass the `scrollController` from the `builder` to your scrollable widgets, otherwise it wouldn't work.
 - BREAKING: Introduces new `interactionMode` that supports `scroll` and `gesture` modes. Note: multi-axis dimsissible page with scrollable content inside work perfectly AND, if `interactionMode` is `scroll`, then combines both `scroll` and `gesture` mode, because otherwise scrollable widget alone can't deliver multi-axis updates, whereas `scrollController` prevent the scrollable content from scrolling when the dragging/dismissing is happening. But there still can be bugs with multi-axis with scrollable content inside, it is generally not recommended to use multi-axis with scrollable inside.

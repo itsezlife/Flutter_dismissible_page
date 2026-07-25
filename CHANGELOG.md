@@ -15,6 +15,11 @@
   again, while mid-list on-axis drags still scroll the inner content and on-axis
   dismissal stays an edge-overscroll behavior. When every allowed side lies on
   the scroll axis, coordination stays arbitration-only.
+- Under Interaction Mode `scroll`, a Free page always dual-mounts Scroll
+  Arbitration with a full-plane gesture shell. Off-axis-dominant starts begin
+  Free Motion (and keep full-plane tracking after the shell wins); mid-list
+  on-axis drags still scroll the inner content; edge overscroll dismissal stays
+  with Scroll Arbitration.
 - FIX: A Constrained drag that interrupts a reverse settle on the other axis now
   starts from origin instead of inheriting the previous gesture's Axis Lock,
   which used to freeze the page and judge the release against the wrong side's

@@ -12,6 +12,12 @@ void main() {
   /// not re-encoded here.
   Widget wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
 
+  /// A vertical scrollable tall enough to scroll on the 800x600 test screen.
+  Widget verticalList(ScrollController controller) => SingleChildScrollView(
+    controller: controller,
+    child: const SizedBox(height: 2200, child: FlutterLogo()),
+  );
+
   testWidgets('exposes FreeDismissiblePage without Dismiss Directions', (
     tester,
   ) async {
@@ -240,10 +246,7 @@ void main() {
       wrap(
         FreeDismissiblePage(
           onDismissed: () => dismissed = true,
-          builder: (context, controller) => SingleChildScrollView(
-            controller: controller,
-            child: const SizedBox(height: 2200, child: FlutterLogo()),
-          ),
+          builder: (context, controller) => verticalList(controller),
         ),
       ),
     );
@@ -259,6 +262,182 @@ void main() {
 
     expect(dismissed, isTrue);
   });
+
+  testWidgets(
+    'scroll mode starts a free dismiss from a horizontal-dominant mid-list '
+    'drag',
+    (tester) async {
+      var dismissed = false;
+      late ScrollController provided;
+
+      await tester.pumpWidget(
+        wrap(
+          FreeDismissiblePage(
+            onDismissed: () => dismissed = true,
+            builder: (context, controller) {
+              provided = controller;
+              return verticalList(controller);
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Scroll into the list first so the off-axis dismiss starts mid-content,
+      // not at the top edge.
+      await tester.drag(
+        find.byType(SingleChildScrollView),
+        const Offset(0, -300),
+      );
+      await tester.pumpAndSettle();
+      expect(provided.offset, greaterThan(0));
+
+      // Horizontal-dominant drag must engage the Free shell. 300 / 800 = 0.375
+      // progress, past the default 0.15 threshold.
+      await tester.drag(
+        find.byType(SingleChildScrollView),
+        const Offset(300, 0),
+      );
+      await tester.pumpAndSettle();
+
+      expect(dismissed, isTrue);
+    },
+  );
+
+  testWidgets(
+    'scroll mode dismisses a horizontal-dominant diagonal under a vertical '
+    'list',
+    (tester) async {
+      var dismissed = false;
+
+      await tester.pumpWidget(
+        wrap(
+          FreeDismissiblePage(
+            onDismissed: () => dismissed = true,
+            builder: (context, controller) => verticalList(controller),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Horizontal-dominant but not pure: the nested VerticalDrag must not
+      // steal the gesture just because there is a small dy component.
+      await tester.drag(
+        find.byType(SingleChildScrollView),
+        const Offset(280, 50),
+      );
+      await tester.pumpAndSettle();
+
+      expect(dismissed, isTrue);
+    },
+  );
+
+  testWidgets(
+    'scroll mode keeps full-plane tracking after the Free shell wins',
+    (tester) async {
+      Offset? lastOffset;
+
+      await tester.pumpWidget(
+        wrap(
+          FreeDismissiblePage(
+            onDismissed: () {},
+            onDragUpdate: (details) => lastOffset = details.offset,
+            builder: (context, controller) => verticalList(controller),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final center = tester.getCenter(find.byType(SingleChildScrollView));
+      final gesture = await tester.startGesture(center);
+
+      // Off-axis-dominant start lets the Free shell win.
+      await gesture.moveBy(const Offset(80, 0));
+      await tester.pump();
+      expect(lastOffset?.dx, greaterThan(0));
+
+      // After the win, Free Motion stays 2D — further vertical movement also
+      // displaces the page (Constrained dual-mount would not).
+      await gesture.moveBy(const Offset(0, 60));
+      await tester.pump();
+      expect(lastOffset?.dx, greaterThan(0));
+      expect(lastOffset?.dy, greaterThan(0));
+
+      await gesture.up();
+      await tester.pumpAndSettle();
+    },
+  );
+
+  testWidgets('scroll mode keeps mid-list on-axis drags scrolling the list', (
+    tester,
+  ) async {
+    var dismissed = false;
+    late ScrollController provided;
+
+    await tester.pumpWidget(
+      wrap(
+        FreeDismissiblePage(
+          onDismissed: () => dismissed = true,
+          builder: (context, controller) {
+            provided = controller;
+            return verticalList(controller);
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Scroll into the list first so the gesture starts mid-content, not at the
+    // top edge where overscroll arbitration would also claim on-axis motion.
+    await tester.drag(
+      find.byType(SingleChildScrollView),
+      const Offset(0, -300),
+    );
+    await tester.pumpAndSettle();
+    final scrolled = provided.offset;
+    expect(scrolled, greaterThan(0));
+
+    // On-axis mid-list: the Free shell yields so the list keeps scrolling.
+    await tester.drag(
+      find.byType(SingleChildScrollView),
+      const Offset(0, -200),
+    );
+    await tester.pumpAndSettle();
+
+    expect(provided.offset, greaterThan(scrolled));
+    expect(dismissed, isFalse);
+  });
+
+  testWidgets(
+    'scroll mode engages the full-plane shell when content cannot scroll',
+    (tester) async {
+      var dismissed = false;
+
+      await tester.pumpWidget(
+        wrap(
+          FreeDismissiblePage(
+            onDismissed: () => dismissed = true,
+            builder: (context, controller) => SingleChildScrollView(
+              controller: controller,
+              // Fits inside the 600-tall test screen — nothing to scroll.
+              child: const SizedBox(height: 200, child: FlutterLogo()),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // No yield path: an on-axis drag still dismisses via the full-plane
+      // shell (gesture-parity with non-scrollable content).
+      await tester.drag(
+        find.byType(FreeDismissiblePage),
+        const Offset(0, 200),
+      );
+      await tester.pumpAndSettle();
+
+      expect(dismissed, isTrue);
+    },
+  );
 
   testWidgets('a reversing gesture eases the settle with the given curve', (
     tester,

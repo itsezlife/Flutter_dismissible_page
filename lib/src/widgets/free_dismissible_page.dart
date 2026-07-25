@@ -10,6 +10,12 @@ part of 'dismissible_page.dart';
 /// [DismissiblePageInteractionMode.scroll] when the child has a primary
 /// scrollable, and [DismissiblePageInteractionMode.gesture] when it never
 /// scrolls.
+///
+/// Under [DismissiblePageInteractionMode.scroll], Scroll Arbitration owns the
+/// nested scrollable's axis (mid-list on-axis scrolls; edge overscroll
+/// dismisses) while a full-plane gesture shell coexists so off-axis-dominant
+/// starts can still begin Free Motion. Once that shell wins, the remainder of
+/// the gesture tracks the full plane.
 /// {@endtemplate}
 class FreeDismissiblePage extends DismissiblePage {
   /// {@macro free_dismissible_page}
@@ -147,6 +153,47 @@ class _FreeDismissiblePageState
   @override
   void onSettleCompleted() => _publishOffset(Offset.zero);
 
+  /// Always dual-mounts under Scroll Arbitration: a full-plane shell that
+  /// coexists with the nested scrollable's axis.
+  ///
+  /// The shell self-yields when the initial dominant delta lies on the scroll
+  /// axis (so mid-list scrolling stays with the nested scrollable). Off-axis-
+  /// dominant starts claim the arena at hit-slop timing so a nested
+  /// axis-locked drag cannot steal Free Motion; after the shell wins it
+  /// tracks the full plane for the rest of the gesture.
+  @override
+  Widget wrapWithCoexistingShell(Widget child) {
+    if (innerScrollAxis case final scrollAxis?) {
+      return RawGestureDetector(
+        gestures: <Type, GestureRecognizerFactory>{
+          _FreeScrollCoexistencePanGestureRecognizer:
+              GestureRecognizerFactoryWithHandlers<
+                _FreeScrollCoexistencePanGestureRecognizer
+              >(
+                () => _FreeScrollCoexistencePanGestureRecognizer(
+                  scrollAxis: scrollAxis,
+                  canInnerContentScroll: () => canInnerContentScroll,
+                ),
+                (instance) {
+                  instance
+                    ..dragStartBehavior = widget.dragStartBehavior
+                    ..onStart = (_) {
+                      handleDragStart();
+                    }
+                    ..onUpdate = (details) {
+                      applyDelta(details.delta);
+                    }
+                    ..onEnd = handleDragEnd;
+                },
+              ),
+        },
+        behavior: widget.hitTestBehavior,
+        child: child,
+      );
+    }
+    return wrapWithGestures(child);
+  }
+
   @override
   void handleScrollDragUpdate(double delta, ScrollPosition position) {
     final scrollAxis = axisDirectionToAxis(position.axisDirection);
@@ -190,5 +237,61 @@ class _FreeDismissiblePageState
     return ScrollExtentMetrics.fromScrollMetrics(
       position,
     ).shouldConsumeFreeScrollDelta(delta);
+  }
+}
+
+/// Full-plane pan that self-yields to a nested scrollable on on-axis-dominant
+/// starts, and claims off-axis-dominant starts at hit-slop timing.
+///
+/// Plain [PanGestureRecognizer] uses pan-slop and loses many horizontal-
+/// dominant diagonals to a nested [VerticalDragGestureRecognizer] (hit-slop on
+/// dy alone). This recognizer decides from the initial dominant delta once
+/// either axis crosses hit-slop: yield when that delta is on [scrollAxis] and
+/// the list can scroll; otherwise accept and track the full plane.
+class _FreeScrollCoexistencePanGestureRecognizer extends PanGestureRecognizer {
+  _FreeScrollCoexistencePanGestureRecognizer({
+    required this.scrollAxis,
+    required this.canInnerContentScroll,
+  });
+
+  /// Axis owned by Scroll Arbitration / the nested scrollable.
+  final Axis scrollAxis;
+
+  /// Whether the nested list can scroll — on-axis-dominant starts yield when
+  /// this is true.
+  final bool Function() canInnerContentScroll;
+
+  Offset _pending = Offset.zero;
+  bool _decisionMade = false;
+
+  @override
+  void addAllowedPointer(PointerDownEvent event) {
+    _pending = Offset.zero;
+    _decisionMade = false;
+    super.addAllowedPointer(event);
+  }
+
+  @override
+  void handleEvent(PointerEvent event) {
+    if (event case final PointerMoveEvent move when !_decisionMade) {
+      _pending += move.delta;
+      final hitSlop = computeHitSlop(move.kind, gestureSettings);
+      final absDx = _pending.dx.abs();
+      final absDy = _pending.dy.abs();
+      if (max(absDx, absDy) > hitSlop) {
+        _decisionMade = true;
+        final onAxisDominant = switch (scrollAxis) {
+          Axis.vertical => absDy >= absDx,
+          Axis.horizontal => absDx >= absDy,
+        };
+        if (onAxisDominant && canInnerContentScroll()) {
+          resolve(GestureDisposition.rejected);
+          stopTrackingPointer(move.pointer);
+          return;
+        }
+        resolve(GestureDisposition.accepted);
+      }
+    }
+    super.handleEvent(event);
   }
 }

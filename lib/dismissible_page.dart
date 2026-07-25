@@ -10,6 +10,7 @@ library;
 
 export 'src/routes/dismissible_extensions.dart';
 export 'src/routes/dismissible_routes.dart';
+export 'src/widgets/constrained_dismissible_page.dart';
 export 'src/widgets/dismissible_page.dart';
 export 'src/widgets/dismissible_page_dismiss_direction.dart';
 export 'src/widgets/dismissible_page_drag_update_details.dart';

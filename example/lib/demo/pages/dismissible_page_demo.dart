@@ -22,6 +22,8 @@ class DismissiblePageDemoState extends State<DismissiblePageDemo> {
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
+        statusBarIconBrightness: .dark,
+        systemStatusBarContrastEnforced: false,
         systemNavigationBarContrastEnforced: false,
         systemNavigationBarIconBrightness: .dark,
       ),
@@ -79,191 +81,196 @@ class _PropertiesState extends State<Properties> {
       pageModel: pageModel,
       startingOpacity: .5,
       // This sheet is scrollable — use the default scroll Interaction Mode.
-      interactionMode: DismissiblePageInteractionMode.gesture,
+      interactionMode: DismissiblePageInteractionMode.scroll,
       builder: (context, scrollController) => GestureDetector(
         onTap: () => Navigator.of(context).pop(),
         behavior: HitTestBehavior.translucent,
         child: Padding(
           padding: const EdgeInsets.only(top: 100),
-          child: Material(
-            borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(8),
-            ),
-            child: SingleChildScrollView(
-              controller: scrollController,
-              padding: EdgeInsets.only(
-                left: 20,
-                right: 20,
-                bottom: MediaQuery.paddingOf(context).bottom,
+          child: GestureDetector(
+            onTap: () {},
+            child: Material(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(8),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 10),
-                  const Title('Bool Parameters'),
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: [
-                      AppChip(
-                        onSelected: () => setState(
-                          () =>
-                              pageModel.isFullScreen = !pageModel.isFullScreen,
+              child: SingleChildScrollView(
+                controller: scrollController,
+                padding: EdgeInsets.only(
+                  left: 20,
+                  right: 20,
+                  bottom: MediaQuery.paddingOf(context).bottom,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 10),
+                    const Title('Bool Parameters'),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        AppChip(
+                          onSelected: () => setState(
+                            () => pageModel.isFullScreen =
+                                !pageModel.isFullScreen,
+                          ),
+                          isSelected: pageModel.isFullScreen,
+                          title: 'isFullscreen',
                         ),
-                        isSelected: pageModel.isFullScreen,
-                        title: 'isFullscreen',
-                      ),
-                      AppChip(
-                        onSelected: () => setState(
-                          () => pageModel.disabled = !pageModel.disabled,
+                        AppChip(
+                          onSelected: () => setState(
+                            () => pageModel.disabled = !pageModel.disabled,
+                          ),
+                          isSelected: pageModel.disabled,
+                          title: 'disabled',
                         ),
-                        isSelected: pageModel.disabled,
-                        title: 'disabled',
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  const Title('Motion'),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: [
-                      AppChip(
-                        onSelected: () => setState(
-                          () =>
-                              pageModel.motionKind = DemoMotionKind.constrained,
-                        ),
-                        isSelected:
-                            pageModel.motionKind == DemoMotionKind.constrained,
-                        title: 'Constrained',
-                      ),
-                      AppChip(
-                        onSelected: () => setState(
-                          () => pageModel.motionKind = DemoMotionKind.free,
-                        ),
-                        isSelected: pageModel.motionKind == DemoMotionKind.free,
-                        title: 'Free',
-                      ),
-                    ],
-                  ),
-                  if (pageModel.motionKind == DemoMotionKind.constrained) ...[
-                    const SizedBox(height: 20),
-                    const Title('Dismiss Directions'),
-                    const SizedBox(height: 4),
-                    const _HintText(
-                      'Tap to add or remove sides (multi-select). Cross-axis '
-                      'sets stay Constrained (Axis Lock) — Free Motion is a '
-                      'separate page type. Empty clears all sides.',
+                      ],
                     ),
+                    const SizedBox(height: 20),
+                    const Title('Motion'),
                     const SizedBox(height: 10),
                     Wrap(
                       spacing: 10,
                       runSpacing: 10,
-                      children: _directionChoices.map((choice) {
-                        final selected = _isDirectionChoiceSelected(
-                          pageModel.directions,
-                          choice.directions,
-                        );
-                        return AppChip(
-                          onSelected: () {
-                            setState(() {
-                              pageModel.directions = _toggleDirectionChoice(
-                                pageModel.directions,
-                                choice.directions,
-                              );
-                            });
-                          },
-                          isSelected: selected,
-                          title: choice.label,
-                        );
-                      }).toList(),
+                      children: [
+                        AppChip(
+                          onSelected: () => setState(
+                            () => pageModel.motionKind =
+                                DemoMotionKind.constrained,
+                          ),
+                          isSelected:
+                              pageModel.motionKind ==
+                              DemoMotionKind.constrained,
+                          title: 'Constrained',
+                        ),
+                        AppChip(
+                          onSelected: () => setState(
+                            () => pageModel.motionKind = DemoMotionKind.free,
+                          ),
+                          isSelected:
+                              pageModel.motionKind == DemoMotionKind.free,
+                          title: 'Free',
+                        ),
+                      ],
                     ),
+                    if (pageModel.motionKind == DemoMotionKind.constrained) ...[
+                      const SizedBox(height: 20),
+                      const Title('Dismiss Directions'),
+                      const SizedBox(height: 4),
+                      const _HintText(
+                        'Tap to add or remove sides (multi-select). Cross-axis '
+                        'sets stay Constrained (Axis Lock) — Free Motion is a '
+                        'separate page type. Empty clears all sides.',
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: _directionChoices.map((choice) {
+                          final selected = _isDirectionChoiceSelected(
+                            pageModel.directions,
+                            choice.directions,
+                          );
+                          return AppChip(
+                            onSelected: () {
+                              setState(() {
+                                pageModel.directions = _toggleDirectionChoice(
+                                  pageModel.directions,
+                                  choice.directions,
+                                );
+                              });
+                            },
+                            isSelected: selected,
+                            title: choice.label,
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 20),
+                      const Title('Dismiss Thresholds'),
+                      const SizedBox(height: 4),
+                      const _HintText(
+                        'Per atomic side for Constrained Motion '
+                        '(progress 0.0–1.0).',
+                      ),
+                      ThresholdSlider(
+                        title: 'up',
+                        value: pageModel.thresholds.up,
+                        onChanged: (value) {
+                          setState(() {
+                            pageModel.thresholds = DismissThresholds(
+                              up: value,
+                              down: pageModel.thresholds.down,
+                              startToEnd: pageModel.thresholds.startToEnd,
+                              endToStart: pageModel.thresholds.endToStart,
+                            );
+                          });
+                        },
+                      ),
+                      ThresholdSlider(
+                        title: 'down',
+                        value: pageModel.thresholds.down,
+                        onChanged: (value) {
+                          setState(() {
+                            pageModel.thresholds = DismissThresholds(
+                              up: pageModel.thresholds.up,
+                              down: value,
+                              startToEnd: pageModel.thresholds.startToEnd,
+                              endToStart: pageModel.thresholds.endToStart,
+                            );
+                          });
+                        },
+                      ),
+                    ] else ...[
+                      const SizedBox(height: 20),
+                      const Title('Dismiss Threshold'),
+                      const SizedBox(height: 4),
+                      const _HintText(
+                        'Single threshold for Free Motion '
+                        '(progress 0.0–1.0).',
+                      ),
+                      ThresholdSlider(
+                        title: 'threshold',
+                        value: pageModel.freeThreshold,
+                        onChanged: (value) {
+                          setState(() => pageModel.freeThreshold = value);
+                        },
+                      ),
+                    ],
                     const SizedBox(height: 20),
-                    const Title('Dismiss Thresholds'),
+                    const Title('Interaction Mode'),
                     const SizedBox(height: 4),
                     const _HintText(
-                      'Per atomic side for Constrained Motion '
-                      '(progress 0.0–1.0).',
+                      'Scroll is the default (this sheet and the Scrollable '
+                      'section). Gesture is for never-scrollable content '
+                      '(stories). PageView / TabBarView are not an '
+                      'Interaction Mode.',
                     ),
-                    ThresholdSlider(
-                      title: 'up',
-                      value: pageModel.thresholds.up,
+                    DurationSlider(
+                      title: 'Transition Duration',
+                      duration: pageModel.transitionDuration,
                       onChanged: (value) {
-                        setState(() {
-                          pageModel.thresholds = DismissThresholds(
-                            up: value,
-                            down: pageModel.thresholds.down,
-                            startToEnd: pageModel.thresholds.startToEnd,
-                            endToStart: pageModel.thresholds.endToStart,
-                          );
-                        });
+                        setState(() => pageModel.transitionDuration = value);
                       },
                     ),
-                    ThresholdSlider(
-                      title: 'down',
-                      value: pageModel.thresholds.down,
+                    DurationSlider(
+                      title: 'Reverse Transition Duration',
+                      duration: pageModel.reverseTransitionDuration,
                       onChanged: (value) {
-                        setState(() {
-                          pageModel.thresholds = DismissThresholds(
-                            up: pageModel.thresholds.up,
-                            down: value,
-                            startToEnd: pageModel.thresholds.startToEnd,
-                            endToStart: pageModel.thresholds.endToStart,
-                          );
-                        });
+                        setState(
+                          () => pageModel.reverseTransitionDuration = value,
+                        );
                       },
                     ),
-                  ] else ...[
+                    DurationSlider(
+                      title: 'Reverse Animation Duration',
+                      duration: pageModel.reverseDuration,
+                      onChanged: (value) {
+                        setState(() => pageModel.reverseDuration = value);
+                      },
+                    ),
                     const SizedBox(height: 20),
-                    const Title('Dismiss Threshold'),
-                    const SizedBox(height: 4),
-                    const _HintText(
-                      'Single threshold for Free Motion '
-                      '(progress 0.0–1.0).',
-                    ),
-                    ThresholdSlider(
-                      title: 'threshold',
-                      value: pageModel.freeThreshold,
-                      onChanged: (value) {
-                        setState(() => pageModel.freeThreshold = value);
-                      },
-                    ),
                   ],
-                  const SizedBox(height: 20),
-                  const Title('Interaction Mode'),
-                  const SizedBox(height: 4),
-                  const _HintText(
-                    'Scroll is the default (this sheet and the Scrollable '
-                    'section). Gesture is for never-scrollable content '
-                    '(stories). PageView / TabBarView are not an '
-                    'Interaction Mode.',
-                  ),
-                  DurationSlider(
-                    title: 'Transition Duration',
-                    duration: pageModel.transitionDuration,
-                    onChanged: (value) {
-                      setState(() => pageModel.transitionDuration = value);
-                    },
-                  ),
-                  DurationSlider(
-                    title: 'Reverse Transition Duration',
-                    duration: pageModel.reverseTransitionDuration,
-                    onChanged: (value) {
-                      setState(
-                        () => pageModel.reverseTransitionDuration = value,
-                      );
-                    },
-                  ),
-                  DurationSlider(
-                    title: 'Reverse Animation Duration',
-                    duration: pageModel.reverseDuration,
-                    onChanged: (value) {
-                      setState(() => pageModel.reverseDuration = value);
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                ],
+                ),
               ),
             ),
           ),

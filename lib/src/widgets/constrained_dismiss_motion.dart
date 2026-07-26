@@ -35,10 +35,15 @@ final class ConstrainedDismissMotion {
   }
 
   /// Applies [delta] through Constrained Motion's axis-lock rules.
+  ///
+  /// When [clampAtOrigin] is true, reverse through origin is blocked even if
+  /// [directions] permit both sides of the locked axis — used by pager Origin
+  /// Crossing's default clamp policy.
   bool applyDelta(
     Offset delta, {
     required DismissDirections directions,
     required TextDirection textDirection,
+    bool clampAtOrigin = false,
   }) {
     final lock = _lock ??= directions.resolveAxisLock(
       delta: delta,
@@ -48,7 +53,7 @@ final class ConstrainedDismissMotion {
     final projected = lock.constrain(
       delta,
       currentExtent: extent,
-      directions: directions,
+      directions: clampAtOrigin ? lock.side : directions,
     );
     final axisDelta = switch (lock.axis) {
       Axis.horizontal => projected.dx,

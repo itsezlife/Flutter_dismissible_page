@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:dismissible_page/dismissible_page_engine.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 
 /// Package-internal callback that checks edge-dismiss eligibility.
@@ -45,6 +46,11 @@ class DismissiblePageViewController extends ScrollController
   VoidCallback? _onDismissEnd;
   bool Function()? _dismissExtentIsAtOrigin;
   PagerCommitment _commitment = PagerCommitment.lockedUntilRelease;
+  PagerOriginCrossing _originCrossing = PagerOriginCrossing.clampAtOrigin;
+  EdgeDismissCooldown _edgeDismissCooldown = const EdgeDismissCooldown(
+    kEdgeDismissCooldown,
+  );
+  DateTime? _lastUserPagingActivity;
 
   /// Installs the package-internal dismissal adapter.
   @internal
@@ -55,6 +61,8 @@ class DismissiblePageViewController extends ScrollController
     required VoidCallback onDismissEnd,
     required bool Function() dismissExtentIsAtOrigin,
     required PagerCommitment commitment,
+    PagerOriginCrossing originCrossing = PagerOriginCrossing.clampAtOrigin,
+    Duration edgeDismissCooldown = kEdgeDismissCooldown,
   }) {
     _isDismissEligible = isDismissEligible;
     _onDismissStart = onDismissStart;
@@ -62,6 +70,8 @@ class DismissiblePageViewController extends ScrollController
     _onDismissEnd = onDismissEnd;
     _dismissExtentIsAtOrigin = dismissExtentIsAtOrigin;
     _commitment = commitment;
+    _originCrossing = originCrossing;
+    _edgeDismissCooldown = EdgeDismissCooldown(edgeDismissCooldown);
   }
 
   /// Removes the package-internal dismissal adapter.
@@ -73,6 +83,21 @@ class DismissiblePageViewController extends ScrollController
     _onDismissEnd = null;
     _dismissExtentIsAtOrigin = null;
   }
+
+  /// Whether Edge Dismiss Cool-down currently permits pager-axis dismissal.
+  @internal
+  bool get isEdgeDismissCooldownArmed => _edgeDismissCooldown.isArmed(
+    now: _frameNow,
+    lastUserPagingActivity: _lastUserPagingActivity,
+  );
+
+  void _noteUserPagingActivity() {
+    _lastUserPagingActivity = _frameNow;
+  }
+
+  DateTime get _frameNow => DateTime.fromMicrosecondsSinceEpoch(
+    SchedulerBinding.instance.currentSystemFrameTimeStamp.inMicroseconds,
+  );
 
   @override
   double? get page => position.page;
@@ -196,6 +221,7 @@ class DismissiblePageViewPosition extends ScrollPositionWithSingleContext
   PagerCommitmentState _commitmentState =
       const PagerCommitmentState.undecided();
   bool _dismissDragUnderway = false;
+  bool _awaitingCooldownStamp = false;
 
   double _viewportFraction;
 
@@ -250,7 +276,14 @@ class DismissiblePageViewPosition extends ScrollPositionWithSingleContext
       return;
     }
 
-    final decision = controller._commitment.decide(
+    // Origin Crossing wins over handoff: a crossing reverse must stay dismiss
+    // rather than handing off at origin. Clamp + handoff still hands off.
+    final commitment = switch (controller._originCrossing) {
+      PagerOriginCrossing.crossToOppositeSide =>
+        PagerCommitment.lockedUntilRelease,
+      PagerOriginCrossing.clampAtOrigin => controller._commitment,
+    };
+    final decision = commitment.decide(
       _commitmentState,
       eligibleForDismiss: eligibility(delta, this),
       dismissExtentIsAtOrigin:
@@ -263,6 +296,8 @@ class DismissiblePageViewPosition extends ScrollPositionWithSingleContext
           _dismissDragUnderway = false;
           controller._onDismissEnd?.call();
         }
+        _awaitingCooldownStamp = true;
+        controller._noteUserPagingActivity();
         super.applyUserOffset(delta);
       case PagerAxisDisposition.dismiss:
         if (!_dismissDragUnderway) {
@@ -270,6 +305,17 @@ class DismissiblePageViewPosition extends ScrollPositionWithSingleContext
           controller._onDismissStart?.call();
         }
         controller._onDismissUpdate?.call(delta, this);
+    }
+  }
+
+  @override
+  void beginActivity(ScrollActivity? newActivity) {
+    super.beginActivity(newActivity);
+    if (!_awaitingCooldownStamp) return;
+    if (newActivity case IdleScrollActivity()) {
+      _awaitingCooldownStamp = false;
+      // Pointer-up or end of settle — whichever reaches idle later wins.
+      controller._noteUserPagingActivity();
     }
   }
 

@@ -32,6 +32,8 @@ class DismissiblePageView extends StatefulWidget {
     this.thresholds = const DismissThresholds(),
     this.controller,
     this.pagerCommitment = PagerCommitment.lockedUntilRelease,
+    this.originCrossing = PagerOriginCrossing.clampAtOrigin,
+    this.edgeDismissCooldown = kEdgeDismissCooldown,
     this.disabled = false,
     this.onDragStart,
     this.onDragEnd,
@@ -70,6 +72,12 @@ class DismissiblePageView extends StatefulWidget {
 
   /// How the first pager-axis decision is retained during a gesture.
   final PagerCommitment pagerCommitment;
+
+  /// Whether a committed pager-axis dismissal may cross origin.
+  final PagerOriginCrossing originCrossing;
+
+  /// Quiet interval after user paging before pager-axis edge dismiss re-arms.
+  final Duration edgeDismissCooldown;
 
   /// Whether dismissal is disabled while paging remains interactive.
   final bool disabled;
@@ -196,6 +204,8 @@ class _DismissiblePageViewState extends State<DismissiblePageView>
       onDismissEnd: _handleDragEnd,
       dismissExtentIsAtOrigin: () => _motion.isAtOrigin(_originEpsilon),
       commitment: widget.pagerCommitment,
+      originCrossing: widget.originCrossing,
+      edgeDismissCooldown: widget.edgeDismissCooldown,
     );
   }
 
@@ -219,6 +229,7 @@ class _DismissiblePageViewState extends State<DismissiblePageView>
 
   bool _isDismissEligible(double delta, ScrollPosition position) {
     if (!_dismissEnabled) return false;
+    if (!_controller.isEdgeDismissCooldownArmed) return false;
     final page = _controller.page;
     final isSettled =
         page != null && (page - page.roundToDouble()).abs() <= _originEpsilon;
@@ -259,18 +270,25 @@ class _DismissiblePageViewState extends State<DismissiblePageView>
     _publishCurrentMotion();
   }
 
-  void _applyDelta(Offset delta) {
+  void _applyDelta(Offset delta, {bool clampAtOrigin = false}) {
     if (!_dragUnderway || _settleController.isAnimating) return;
     final changed = _motion.applyDelta(
       delta,
       directions: widget.directions,
       textDirection: _textDirection,
+      clampAtOrigin: clampAtOrigin,
     );
     if (changed) _publishCurrentMotion();
   }
 
   void _handlePagerUpdate(double delta, ScrollPosition _) {
-    _applyDelta(Offset(delta, 0));
+    _applyDelta(
+      Offset(delta, 0),
+      clampAtOrigin: switch (widget.originCrossing) {
+        PagerOriginCrossing.clampAtOrigin => true,
+        PagerOriginCrossing.crossToOppositeSide => false,
+      },
+    );
   }
 
   void _handleDragEnd() {

@@ -13,6 +13,7 @@ library;
 export 'src/engine/constrained_motion.dart' show DismissThresholds;
 export 'src/engine/dismiss_directions.dart';
 export 'src/engine/pager_commitment.dart' show PagerCommitment;
+export 'src/engine/pager_origin_crossing.dart' show PagerOriginCrossing;
 export 'src/routes/dismissible_extensions.dart';
 export 'src/routes/dismissible_routes.dart';
 export 'src/widgets/dismissible_page.dart';

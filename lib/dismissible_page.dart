@@ -12,6 +12,7 @@ library;
 
 export 'src/engine/constrained_motion.dart' show DismissThresholds;
 export 'src/engine/dismiss_directions.dart';
+export 'src/engine/pager_commitment.dart' show PagerCommitment;
 export 'src/routes/dismissible_extensions.dart';
 export 'src/routes/dismissible_routes.dart';
 export 'src/widgets/dismissible_page.dart';
@@ -20,3 +21,6 @@ export 'src/widgets/dismissible_page_drag_update_details.dart';
 export 'src/widgets/dismissible_page_interaction_mode.dart';
 export 'src/widgets/dismissible_page_scroll_controller.dart'
     show DismissiblePageDragNotification;
+export 'src/widgets/dismissible_page_view.dart';
+export 'src/widgets/dismissible_page_view_controller.dart'
+    show DismissiblePageViewController;

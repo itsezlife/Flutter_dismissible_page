@@ -99,16 +99,9 @@ class ConstrainedDismissiblePage extends DismissiblePage {
 
 class _ConstrainedDismissiblePageState
     extends _DismissiblePageState<ConstrainedDismissiblePage> {
+  late final _motion = ConstrainedDismissMotion();
+
   late final TextDirection _textDirection = Directionality.of(context);
-
-  /// The axis/side locked for the active gesture, or null before a lock.
-  AxisLock? _lock;
-
-  /// Accumulated drag distance in pixels along the locked axis.
-  double _dragExtent = 0;
-
-  /// Drag extent captured when a reverse settle begins.
-  double _settleFrom = 0;
 
   @override
   bool get dismissEnabled =>
@@ -117,48 +110,20 @@ class _ConstrainedDismissiblePageState
   @override
   String get postFrameDebugLabel => 'ConstrainedDismissiblePage.postFrame';
 
-  Axis get _axis => _lock?.axis ?? Axis.vertical;
-
-  double get _axisExtent => switch (_axis) {
-    Axis.horizontal => screenSize.width,
-    Axis.vertical => screenSize.height,
-  };
-
-  /// Raw drag progress along the locked axis (0.0–1.0), the value compared
-  /// against the Dismiss Threshold.
-  double get _progress =>
-      _axisExtent == 0 ? 0 : (_dragExtent.abs() / _axisExtent).clamp(0.0, 1.0);
-
-  DismissiblePageDragUpdateDetails _detailsForExtent(double extent) {
-    final axisExtent = _axisExtent;
-    final progress = axisExtent == 0
-        ? 0.0
-        : (extent.abs() / axisExtent).clamp(0.0, 1.0);
-    final translationFraction = (extent / axisExtent * widget.dragSensitivity)
-        .clamp(
-          -widget.maxTransformValue,
-          widget.maxTransformValue,
-        );
-    final offset = switch (_axis) {
-      Axis.horizontal => Offset(translationFraction * screenSize.width, 0),
-      Axis.vertical => Offset(0, translationFraction * screenSize.height),
-    };
-    final presentation = presentationConfig.map(
-      progress: (progress * widget.dragSensitivity).clamp(0.0, 1.0),
-      offset: offset,
-    );
-    return DismissiblePageDragUpdateDetails(
-      overallDragValue: min(progress, widget.maxTransformValue),
-      radius: presentation.radius,
-      opacity: presentation.opacity,
-      offset: presentation.offset,
-      scale: presentation.scale,
+  void _publishCurrentMotion() {
+    publishDetails(
+      _motion.details(
+        screenSize: screenSize,
+        presentationConfig: presentationConfig,
+        dragSensitivity: widget.dragSensitivity,
+        maxTransformValue: widget.maxTransformValue,
+      ),
     );
   }
 
   void _publishExtent(double extent) {
-    _dragExtent = extent;
-    publishDetails(_detailsForExtent(extent));
+    _motion.extent = extent;
+    _publishCurrentMotion();
   }
 
   @override
@@ -172,68 +137,55 @@ class _ConstrainedDismissiblePageState
     // axis, so a gesture on the other axis starts clean — otherwise an
     // on-axis drag could finish a cross-axis dismissal left mid-settle.
     final continuesLockedAxis =
-        settleController.isAnimating && (axis == null || _lock?.axis == axis);
+        settleController.isAnimating && _motion.continuesSettlingAxis(axis);
     settleController.stop();
     if (continuesLockedAxis) return;
 
-    _publishExtent(0);
-    _lock = null;
+    _motion.reset();
+    _publishCurrentMotion();
   }
 
   @override
   void applyDelta(Offset delta) {
     if (!dragUnderway || settleController.isAnimating) return;
-    final lock = _lock ??= widget.directions.resolveAxisLock(
-      delta: delta,
+    final changed = _motion.applyDelta(
+      delta,
+      directions: widget.directions,
       textDirection: _textDirection,
     );
-    if (lock == null) return;
-
-    // The engine projects the delta onto the locked axis, allows reverse
-    // toward origin, and clamps or side-flips per Dismiss Directions.
-    final projected = lock.constrain(
-      delta,
-      currentExtent: _dragExtent,
-      directions: widget.directions,
-    );
-    final axisDelta = switch (lock.axis) {
-      Axis.horizontal => projected.dx,
-      Axis.vertical => projected.dy,
-    };
-    if (axisDelta == 0) return;
-
-    _publishExtent(_dragExtent + axisDelta);
+    if (changed) _publishCurrentMotion();
   }
 
   @override
   void handleDragEnd([DragEndDetails? _]) {
     if (!dragUnderway) return;
     dragUnderway = false;
-    final lock = _lock;
-    if (lock == null || _dragExtent == 0) return;
+    if (_motion.lock == null || _motion.extent == 0) return;
 
-    switch (lock.decide(
-      progress: _progress,
-      extent: _dragExtent,
+    switch (_motion.decide(
+      screenSize: screenSize,
       thresholds: widget.thresholds,
     )) {
       case DismissDecision.dismiss:
         dispatchDismissed();
         widget.onDismissed();
       case DismissDecision.reverse:
-        _settleFrom = _dragExtent;
+        _motion.beginSettle();
         unawaited(settleController.forward(from: 0));
         widget.onDragEnd?.call();
     }
   }
 
   @override
-  void onSettleTick(double t) => _publishExtent(_settleFrom * (1 - t));
+  void onSettleTick(double t) {
+    _motion.settle(t);
+    _publishCurrentMotion();
+  }
 
   @override
   void onSettleCompleted() {
-    _publishExtent(0);
-    _lock = null;
+    _motion.reset();
+    _publishCurrentMotion();
   }
 
   /// Mounts a cross-axis shell alongside Scroll Arbitration when some allowed
@@ -265,12 +217,12 @@ class _ConstrainedDismissiblePageState
     final hasScrollableContent =
         (position.maxScrollExtent - position.minScrollExtent).abs() >
         _DismissiblePageState.originEpsilon;
+    final dragExtent = _motion.extent;
     final isReturning =
-        (_dragExtent > 0 && delta < 0) || (_dragExtent < 0 && delta > 0);
+        (dragExtent > 0 && delta < 0) || (dragExtent < 0 && delta > 0);
     final reachesOrigin =
         isReturning &&
-        (delta.abs() + _DismissiblePageState.originEpsilon >=
-            _dragExtent.abs());
+        (delta.abs() + _DismissiblePageState.originEpsilon >= dragExtent.abs());
     if (hasScrollableContent && reachesOrigin) {
       _publishExtent(0);
       return;
@@ -280,14 +232,14 @@ class _ConstrainedDismissiblePageState
   }
 
   bool _isDeltaReturningToOrigin(Offset delta) {
-    final lock = _lock;
+    final lock = _motion.lock;
     if (lock == null) return false;
     final axisDelta = switch (lock.axis) {
       Axis.horizontal => delta.dx,
       Axis.vertical => delta.dy,
     };
-    return (_dragExtent > 0 && axisDelta < 0) ||
-        (_dragExtent < 0 && axisDelta > 0);
+    return (_motion.extent > 0 && axisDelta < 0) ||
+        (_motion.extent < 0 && axisDelta > 0);
   }
 
   @override
@@ -301,7 +253,7 @@ class _ConstrainedDismissiblePageState
 
     // Keep consuming while the page returns toward origin so inner content
     // does not start scrolling prematurely.
-    if (_dragExtent != 0 && _isDeltaReturningToOrigin(delta2D)) return true;
+    if (_motion.extent != 0 && _isDeltaReturningToOrigin(delta2D)) return true;
 
     return widget.directions.shouldConsumeScrollDelta(
       delta: delta,

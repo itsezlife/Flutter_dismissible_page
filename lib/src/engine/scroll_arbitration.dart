@@ -111,6 +111,28 @@ extension ScrollArbitration on DismissDirections {
     return delta > 0 ? metrics.isAtMinExtent : metrics.isAtMaxExtent;
   }
 
+  /// Whether [delta] should be consumed as horizontal pager-axis dismissal.
+  ///
+  /// Same edge and Dismiss Directions rules as [shouldConsumeScrollDelta],
+  /// plus a settled whole-page gate: a half-turned page never starts
+  /// pager-axis dismissal. MVP locks the pager axis to horizontal.
+  ///
+  /// [delta] is in scroll-space (`ScrollPosition.applyUserOffset` units).
+  bool shouldConsumePagerScrollDelta({
+    required double delta,
+    required ScrollExtentMetrics metrics,
+    required TextDirection textDirection,
+    required bool isSettledOnWholePage,
+  }) {
+    if (!isSettledOnWholePage) return false;
+    return shouldConsumeScrollDelta(
+      delta: delta,
+      metrics: metrics,
+      scrollAxis: Axis.horizontal,
+      textDirection: textDirection,
+    );
+  }
+
   DismissDirections? _sideForScrollDelta({
     required double delta,
     required Axis scrollAxis,

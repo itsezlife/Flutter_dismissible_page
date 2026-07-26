@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:dismissible_page/dismissible_page_engine.dart';
+import 'package:dismissible_page/src/widgets/constrained_dismiss_motion.dart';
 import 'package:dismissible_page/src/widgets/dismissible_page_builder.dart';
 import 'package:dismissible_page/src/widgets/dismissible_page_chrome.dart';
 import 'package:dismissible_page/src/widgets/dismissible_page_drag_update_details.dart';

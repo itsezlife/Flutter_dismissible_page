@@ -1,6 +1,5 @@
 import 'package:dismissible_page/dismissible_page.dart';
 import 'package:example/demo/models/models.dart';
-import 'package:example/demo/pages/dismissible_page_demo.dart';
 import 'package:example/demo/pages/story_page.dart';
 import 'package:example/demo/widgets/cubic_page_view.dart';
 import 'package:flutter/material.dart';
@@ -19,10 +18,8 @@ class StoriesWrapper extends StatefulWidget {
   State<StoriesWrapper> createState() => _StoriesWrapperState();
 }
 
-class _StoriesWrapperState extends State<StoriesWrapper>
-    with TickerProviderStateMixin {
-  late int dWidth;
-  late PageController pageCtrl;
+class _StoriesWrapperState extends State<StoriesWrapper> {
+  late final DismissiblePageViewController pageCtrl;
 
   List<StoryModel> get stories => widget.pageModel.stories;
 
@@ -30,14 +27,8 @@ class _StoriesWrapperState extends State<StoriesWrapper>
 
   @override
   void initState() {
-    pageCtrl = PageController(initialPage: widget.parentIndex);
+    pageCtrl = DismissiblePageViewController(initialPage: widget.parentIndex);
     super.initState();
-  }
-
-  @override
-  void didChangeDependencies() {
-    dWidth = MediaQuery.widthOf(context).floor();
-    super.didChangeDependencies();
   }
 
   void nextPage() {
@@ -78,14 +69,26 @@ class _StoriesWrapperState extends State<StoriesWrapper>
 
   @override
   Widget build(BuildContext context) {
-    // Demo-only pager chrome. PageView / TabBarView are not an Interaction
-    // Mode of this package — content here is never scrollable for dismiss,
-    // so gesture mode is the correct choice.
-    return DismissibleDemo(
-      pageModel: widget.pageModel,
-      interactionMode: DismissiblePageInteractionMode.gesture,
-      builder: (context, _) => CubicPageView(
-        controller: pageCtrl,
+    final pageModel = widget.pageModel;
+    return DismissiblePageView(
+      controller: pageCtrl,
+      onDismissed: () => Navigator.of(context).maybePop(),
+      directions: pageModel.directions,
+      thresholds: pageModel.thresholds,
+      isFullScreen: pageModel.isFullScreen,
+      minRadius: pageModel.minRadius,
+      maxRadius: pageModel.maxRadius,
+      dragSensitivity: pageModel.dragSensitivity,
+      maxTransformValue: pageModel.maxTransformValue,
+      disabled: pageModel.disabled,
+      backgroundColor: pageModel.backgroundColor,
+      dragStartBehavior: pageModel.dragStartBehavior,
+      minScale: pageModel.minScale,
+      startingOpacity: pageModel.startingOpacity,
+      hitTestBehavior: pageModel.behavior,
+      reverseDuration: pageModel.reverseDuration,
+      builder: (context, controller) => CubicPageView(
+        controller: controller,
         children: stories.map((story) {
           return StoryPage(
             story: story,

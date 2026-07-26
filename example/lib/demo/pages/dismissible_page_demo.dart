@@ -241,9 +241,10 @@ class _PropertiesState extends State<Properties> {
                     const SizedBox(height: 4),
                     const _HintText(
                       'Scroll is the default (this sheet and the Scrollable '
-                      'section). Gesture is for never-scrollable content '
-                      '(stories). PageView / TabBarView are not an '
-                      'Interaction Mode.',
+                      'section). Gesture is for never-scrollable content. '
+                      'Stories use Dismissible Page View (not Interaction '
+                      'Mode). PageView / TabBarView are not an Interaction '
+                      'Mode.',
                     ),
                     DurationSlider(
                       title: 'Transition Duration',

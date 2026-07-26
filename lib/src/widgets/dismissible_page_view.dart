@@ -151,16 +151,17 @@ class _DismissiblePageViewState extends State<DismissiblePageView>
   bool get _dismissEnabled =>
       !widget.disabled && widget.directions.allowsDragDismissal;
 
-  late final TextDirection _textDirection = Directionality.of(context);
+  TextDirection get _textDirection => Directionality.of(context);
 
-  late final DragPresentationConfig _presentationConfig =
-      DragPresentationConfig(
-        minRadius: widget.minRadius,
-        maxRadius: widget.maxRadius,
-        minScale: widget.minScale,
-        startingOpacity: widget.startingOpacity,
-        minOpacity: widget.minOpacity,
-      );
+  Size get _screenSize => MediaQuery.sizeOf(context);
+
+  DragPresentationConfig get _presentationConfig => DragPresentationConfig(
+    minRadius: widget.minRadius,
+    maxRadius: widget.maxRadius,
+    minScale: widget.minScale,
+    startingOpacity: widget.startingOpacity,
+    minOpacity: widget.minOpacity,
+  );
 
   @override
   void initState() {
@@ -251,7 +252,7 @@ class _DismissiblePageViewState extends State<DismissiblePageView>
   void _publishCurrentMotion() {
     if (!mounted) return;
     _dragNotifier.value = _motion.details(
-      screenSize: MediaQuery.sizeOf(context),
+      screenSize: _screenSize,
       presentationConfig: _presentationConfig,
       dragSensitivity: widget.dragSensitivity,
       maxTransformValue: widget.maxTransformValue,
@@ -296,7 +297,7 @@ class _DismissiblePageViewState extends State<DismissiblePageView>
     _dragUnderway = false;
     if (_motion.lock == null || _motion.extent == 0) return;
     switch (_motion.decide(
-      screenSize: MediaQuery.sizeOf(context),
+      screenSize: _screenSize,
       thresholds: widget.thresholds,
     )) {
       case DismissDecision.dismiss:

@@ -101,7 +101,7 @@ class _ConstrainedDismissiblePageState
     extends _DismissiblePageState<ConstrainedDismissiblePage> {
   late final _motion = ConstrainedDismissMotion();
 
-  late final TextDirection _textDirection = Directionality.of(context);
+  TextDirection get _textDirection => Directionality.of(context);
 
   @override
   bool get dismissEnabled =>

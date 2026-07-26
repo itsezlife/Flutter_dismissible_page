@@ -14,7 +14,7 @@ abstract class _DismissiblePageState<W extends DismissiblePage> extends State<W>
   late final AnimationController settleController;
   late final ValueNotifier<DismissiblePageDragUpdateDetails> dragNotifier;
 
-  late final Size screenSize = MediaQuery.sizeOf(context);
+  Size get screenSize => MediaQuery.sizeOf(context);
 
   bool dragUnderway = false;
   bool canInnerContentScroll = false;
@@ -31,7 +31,7 @@ abstract class _DismissiblePageState<W extends DismissiblePage> extends State<W>
   /// Debug label for the post-frame scrollability check.
   String get postFrameDebugLabel;
 
-  late final DragPresentationConfig presentationConfig = DragPresentationConfig(
+  DragPresentationConfig get presentationConfig => DragPresentationConfig(
     minRadius: widget.minRadius,
     maxRadius: widget.maxRadius,
     minScale: widget.minScale,

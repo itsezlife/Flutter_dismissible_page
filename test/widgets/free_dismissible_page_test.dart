@@ -87,6 +87,35 @@ void main() {
     expect(dragEnded, isFalse);
   });
 
+  testWidgets(
+    'confirmDismiss false reverse-settles without calling onDismissed',
+    (tester) async {
+      var dismissed = false;
+      var dragEnded = false;
+
+      await tester.pumpWidget(
+        wrap(
+          FreeDismissiblePage(
+            interactionMode: DismissiblePageInteractionMode.gesture,
+            confirmDismiss: () async => false,
+            onDismissed: () => dismissed = true,
+            onDragEnd: () => dragEnded = true,
+            builder: (context, controller) => const FlutterLogo(),
+          ),
+        ),
+      );
+
+      await tester.drag(
+        find.byType(FreeDismissiblePage),
+        const Offset(100, 150),
+      );
+      await tester.pumpAndSettle();
+
+      expect(dismissed, isFalse);
+      expect(dragEnded, isTrue);
+    },
+  );
+
   testWidgets('a gesture that falls short of the threshold reverses', (
     tester,
   ) async {

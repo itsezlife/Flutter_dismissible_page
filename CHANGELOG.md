@@ -1,4 +1,8 @@
 ## Unreleased
+- Adds optional `confirmDismiss` on `DismissiblePage` (Constrained and Free).
+  When a gesture crosses the dismiss threshold, the callback is awaited before
+  completing dismiss: `true` invokes `onDismissed`, `false` reverse-settles to
+  rest, and a null/omitted callback preserves legacy dismiss behavior.
 - BREAKING: Replaces the legacy `DismissiblePageDismissDirection` facade with a
   sealed page API: `ConstrainedDismissiblePage` (Constrained Motion + composable
   `DismissDirections`) and `FreeDismissiblePage` (Free Motion). Prefer

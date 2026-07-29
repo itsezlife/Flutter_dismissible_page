@@ -19,6 +19,9 @@ abstract class _DismissiblePageState<W extends DismissiblePage> extends State<W>
   bool dragUnderway = false;
   bool canInnerContentScroll = false;
 
+  /// True while [DismissiblePage.confirmDismiss] is awaiting a result.
+  bool confirmingDismiss = false;
+
   /// Axis of the nested scrollable, or null before it reports one.
   ///
   /// Scroll Arbitration owns this axis; variants consult it to decide whether
@@ -124,6 +127,26 @@ abstract class _DismissiblePageState<W extends DismissiblePage> extends State<W>
     DismissiblePageDragNotification(
       details: dragNotifier.value.copyWith(isDismissed: true),
     ).dispatch(context);
+  }
+
+  /// Completes dismiss, or reverse-settles when
+  /// [DismissiblePage.confirmDismiss] returns false. Holds at the current
+  /// extent until the Future completes.
+  Future<void> awaitConfirmDismiss({
+    required VoidCallback reverseSettle,
+  }) async {
+    if (widget.confirmDismiss case final confirm?) {
+      confirmingDismiss = true;
+      final shouldDismiss = await confirm();
+      if (!mounted) return;
+      confirmingDismiss = false;
+      if (!shouldDismiss) {
+        reverseSettle();
+        return;
+      }
+    }
+    dispatchDismissed();
+    widget.onDismissed();
   }
 
   void handleScrollDragStart() => handleDragStart(innerScrollAxis);

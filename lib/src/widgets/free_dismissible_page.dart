@@ -22,6 +22,7 @@ class FreeDismissiblePage extends DismissiblePage {
   const FreeDismissiblePage({
     required super.builder,
     required super.onDismissed,
+    super.confirmDismiss,
     this.threshold = kDismissThreshold,
     super.interactionMode,
     super.disabled,
@@ -106,7 +107,7 @@ class _FreeDismissiblePageState
 
   @override
   void handleDragStart([Axis? _]) {
-    if (!dismissEnabled) return;
+    if (!dismissEnabled || confirmingDismiss) return;
     widget.onDragStart?.call();
     dragUnderway = true;
     if (settleController.isAnimating) {
@@ -124,6 +125,12 @@ class _FreeDismissiblePageState
     _publishOffset(_dragOffset + delta);
   }
 
+  void _reverseSettleToRest() {
+    _settleFrom = _dragOffset;
+    unawaited(settleController.forward(from: 0));
+    widget.onDragEnd?.call();
+  }
+
   @override
   void handleDragEnd([DragEndDetails? _]) {
     if (!dragUnderway) return;
@@ -136,12 +143,11 @@ class _FreeDismissiblePageState
     );
     switch (decision) {
       case DismissDecision.dismiss:
-        dispatchDismissed();
-        widget.onDismissed();
+        unawaited(
+          awaitConfirmDismiss(reverseSettle: _reverseSettleToRest),
+        );
       case DismissDecision.reverse:
-        _settleFrom = _dragOffset;
-        unawaited(settleController.forward(from: 0));
-        widget.onDragEnd?.call();
+        _reverseSettleToRest();
     }
   }
 

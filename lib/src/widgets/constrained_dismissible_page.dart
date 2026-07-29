@@ -56,6 +56,7 @@ class ConstrainedDismissiblePage extends DismissiblePage {
   const ConstrainedDismissiblePage({
     required super.builder,
     required super.onDismissed,
+    super.confirmDismiss,
     this.directions = DismissDirections.vertical,
     this.thresholds = const DismissThresholds(),
     super.interactionMode,
@@ -128,7 +129,7 @@ class _ConstrainedDismissiblePageState
 
   @override
   void handleDragStart([Axis? axis]) {
-    if (!dismissEnabled) return;
+    if (!dismissEnabled || confirmingDismiss) return;
     widget.onDragStart?.call();
     dragUnderway = true;
 
@@ -156,6 +157,12 @@ class _ConstrainedDismissiblePageState
     if (changed) _publishCurrentMotion();
   }
 
+  void _reverseSettleToRest() {
+    _motion.beginSettle();
+    unawaited(settleController.forward(from: 0));
+    widget.onDragEnd?.call();
+  }
+
   @override
   void handleDragEnd([DragEndDetails? _]) {
     if (!dragUnderway) return;
@@ -167,12 +174,11 @@ class _ConstrainedDismissiblePageState
       thresholds: widget.thresholds,
     )) {
       case DismissDecision.dismiss:
-        dispatchDismissed();
-        widget.onDismissed();
+        unawaited(
+          awaitConfirmDismiss(reverseSettle: _reverseSettleToRest),
+        );
       case DismissDecision.reverse:
-        _motion.beginSettle();
-        unawaited(settleController.forward(from: 0));
-        widget.onDragEnd?.call();
+        _reverseSettleToRest();
     }
   }
 

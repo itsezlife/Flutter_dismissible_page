@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dismissible_page/dismissible_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -123,6 +125,121 @@ void main() {
     expect(dismissed, isFalse);
     expect(dragEnded, isTrue);
   });
+
+  testWidgets(
+    'confirmDismiss false reverse-settles without calling onDismissed',
+    (tester) async {
+      var dismissed = false;
+      var dragEnded = false;
+
+      await tester.pumpWidget(
+        wrap(
+          ConstrainedDismissiblePage(
+            interactionMode: DismissiblePageInteractionMode.gesture,
+            confirmDismiss: () async => false,
+            onDismissed: () => dismissed = true,
+            onDragEnd: () => dragEnded = true,
+            builder: (context, controller) => const FlutterLogo(),
+          ),
+        ),
+      );
+
+      await tester.drag(
+        find.byType(ConstrainedDismissiblePage),
+        const Offset(0, 200),
+      );
+      await tester.pumpAndSettle();
+
+      expect(dismissed, isFalse);
+      expect(dragEnded, isTrue);
+    },
+  );
+
+  testWidgets(
+    'confirmDismiss true completes dismiss and calls onDismissed',
+    (tester) async {
+      var dismissed = false;
+      var dragEnded = false;
+
+      await tester.pumpWidget(
+        wrap(
+          ConstrainedDismissiblePage(
+            interactionMode: DismissiblePageInteractionMode.gesture,
+            confirmDismiss: () async => true,
+            onDismissed: () => dismissed = true,
+            onDragEnd: () => dragEnded = true,
+            builder: (context, controller) => const FlutterLogo(),
+          ),
+        ),
+      );
+
+      await tester.drag(
+        find.byType(ConstrainedDismissiblePage),
+        const Offset(0, 200),
+      );
+      await tester.pumpAndSettle();
+
+      expect(dismissed, isTrue);
+      expect(dragEnded, isFalse);
+    },
+  );
+
+  testWidgets(
+    'omitted confirmDismiss preserves legacy dismiss past threshold',
+    (tester) async {
+      var dismissed = false;
+
+      await tester.pumpWidget(
+        wrap(
+          ConstrainedDismissiblePage(
+            interactionMode: DismissiblePageInteractionMode.gesture,
+            onDismissed: () => dismissed = true,
+            builder: (context, controller) => const FlutterLogo(),
+          ),
+        ),
+      );
+
+      await tester.drag(
+        find.byType(ConstrainedDismissiblePage),
+        const Offset(0, 200),
+      );
+      await tester.pumpAndSettle();
+
+      expect(dismissed, isTrue);
+    },
+  );
+
+  testWidgets(
+    'confirmDismiss holds dismiss until the Future completes',
+    (tester) async {
+      var dismissed = false;
+      final gate = Completer<bool>();
+
+      await tester.pumpWidget(
+        wrap(
+          ConstrainedDismissiblePage(
+            interactionMode: DismissiblePageInteractionMode.gesture,
+            confirmDismiss: () => gate.future,
+            onDismissed: () => dismissed = true,
+            builder: (context, controller) => const FlutterLogo(),
+          ),
+        ),
+      );
+
+      await tester.drag(
+        find.byType(ConstrainedDismissiblePage),
+        const Offset(0, 200),
+      );
+      await tester.pump();
+
+      expect(dismissed, isFalse);
+
+      gate.complete(true);
+      await tester.pumpAndSettle();
+
+      expect(dismissed, isTrue);
+    },
+  );
 
   testWidgets('respects the selected side: a disallowed side cannot dismiss', (
     tester,

@@ -38,6 +38,7 @@ sealed class DismissiblePage extends StatefulWidget {
   const DismissiblePage({
     required this.builder,
     required this.onDismissed,
+    this.confirmDismiss,
     this.interactionMode = DismissiblePageInteractionMode.scroll,
     this.disabled = false,
     this.onDragStart,
@@ -66,6 +67,7 @@ sealed class DismissiblePage extends StatefulWidget {
   const factory DismissiblePage.constrained({
     required DismissiblePageBuilder builder,
     required VoidCallback onDismissed,
+    Future<bool> Function()? confirmDismiss,
     DismissDirections directions,
     DismissThresholds thresholds,
     DismissiblePageInteractionMode interactionMode,
@@ -96,6 +98,7 @@ sealed class DismissiblePage extends StatefulWidget {
   const factory DismissiblePage.free({
     required DismissiblePageBuilder builder,
     required VoidCallback onDismissed,
+    Future<bool> Function()? confirmDismiss,
     double threshold,
     DismissiblePageInteractionMode interactionMode,
     bool disabled,
@@ -128,6 +131,13 @@ sealed class DismissiblePage extends StatefulWidget {
 
   /// Called when a gesture completes a dismissal.
   final VoidCallback onDismissed;
+
+  /// Optional gate awaited after a gesture crosses the dismiss threshold.
+  ///
+  /// Return `true` to complete the dismissal and invoke [onDismissed].
+  /// Return `false` to reverse-settle to rest without invoking [onDismissed].
+  /// When null, dismissal completes immediately (legacy behavior).
+  final Future<bool> Function()? confirmDismiss;
 
   /// How dismissal is coordinated with nested scrolling.
   final DismissiblePageInteractionMode interactionMode;

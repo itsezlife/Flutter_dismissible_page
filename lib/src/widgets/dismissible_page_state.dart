@@ -35,8 +35,7 @@ abstract class _DismissiblePageState<W extends DismissiblePage> extends State<W>
   String get postFrameDebugLabel;
 
   DragPresentationConfig get presentationConfig => DragPresentationConfig(
-    minRadius: widget.minRadius,
-    maxRadius: widget.maxRadius,
+    shape: widget.shape,
     minScale: widget.minScale,
     startingOpacity: widget.startingOpacity,
     minOpacity: widget.minOpacity,
@@ -49,7 +48,7 @@ abstract class _DismissiblePageState<W extends DismissiblePage> extends State<W>
     // illegal until after initState completes.
     dragNotifier = ValueNotifier(
       DismissiblePageDragUpdateDetails(
-        radius: widget.minRadius,
+        shape: widget.shape.resolve(0),
         opacity: widget.startingOpacity,
       ),
     )..addListener(dragListener);
@@ -197,7 +196,7 @@ abstract class _DismissiblePageState<W extends DismissiblePage> extends State<W>
           presentation: DragPresentation(
             progress: details.overallDragValue,
             offset: details.offset,
-            radius: details.radius,
+            shape: details.shape,
             opacity: details.opacity,
             scale: details.scale,
           ),

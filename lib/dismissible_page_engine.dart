@@ -8,6 +8,7 @@ library;
 export 'src/engine/constrained_motion.dart';
 export 'src/engine/dismiss_constants.dart';
 export 'src/engine/dismiss_directions.dart';
+export 'src/engine/dismissible_page_shape.dart';
 export 'src/engine/drag_presentation.dart';
 export 'src/engine/edge_dismiss_cooldown.dart';
 export 'src/engine/free_motion.dart';

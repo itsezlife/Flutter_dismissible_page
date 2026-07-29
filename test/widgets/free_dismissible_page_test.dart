@@ -262,7 +262,13 @@ void main() {
       expect(details.offset, isNot(Offset.zero));
       expect(details.scale, lessThan(1.0));
       expect(details.opacity, lessThanOrEqualTo(1.0));
-      expect(details.radius, greaterThanOrEqualTo(7.0));
+      // Past Shape Snap threshold, default strategy reports the dragged shape.
+      expect(
+        details.shape,
+        const RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(30)),
+        ),
+      );
     }
   });
 

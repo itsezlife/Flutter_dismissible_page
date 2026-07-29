@@ -34,8 +34,7 @@ class FreeDismissiblePage extends DismissiblePage {
     super.dragStartBehavior,
     super.dragSensitivity,
     super.minScale,
-    super.minRadius,
-    super.maxRadius,
+    super.shape,
     super.maxTransformValue,
     super.startingOpacity,
     super.enableBackgroundOpacity,
@@ -93,7 +92,7 @@ class _FreeDismissiblePageState
     );
     return DismissiblePageDragUpdateDetails(
       overallDragValue: min(progress, widget.maxTransformValue),
-      radius: presentation.radius,
+      shape: presentation.shape,
       opacity: presentation.opacity,
       offset: presentation.offset,
       scale: presentation.scale,

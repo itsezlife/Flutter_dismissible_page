@@ -32,6 +32,9 @@ Flutter widget that allows you to dismiss page to any direction, forget the bori
 | **Free Motion** | Full-plane (2D) drag. Independent of Dismiss Directions — use `FreeDismissiblePage`, not a direction flag. |
 | **Dismiss Directions** | Combinable bitmask of atomic sides (`up`, `down`, `startToEnd`, `endToStart`) plus composites (`vertical`, `horizontal`, `all`). Empty set turns drag-dismiss off. |
 | **Interaction Mode** | Orthogonal to motion. `scroll` (default) arbitrates with a nested scrollable; `gesture` is for content that never scrolls. |
+| **Page Shape** | Clip outline (`ShapeBorder`) of the dismissible page for the current Drag Progress. |
+| **Shape Strategy** | How Page Shape is produced: library **Shape Snap** (rest → dragged after a small threshold) or a caller **builder**. |
+| **Shape Snap** | Keep the rest Page Shape until Drag Progress exceeds a threshold, then jump to the dragged shape. Chrome clips only. |
 
 `PageView` / `TabBarView` are **not** an Interaction Mode in this package and are
 not supported as a dismiss coordination path in this release.
@@ -64,7 +67,7 @@ https://github.com/user-attachments/assets/9ef89285-7d6a-45f9-87aa-d589d8d89c5e
 
 - Dismiss to any direction
 - Works with nested list view
-- Animating border
+- Page Shape via Shape Strategy (Shape Snap or progress builder)
 - Animating background
 - Animating scale
 
@@ -181,8 +184,72 @@ DismissiblePage.free(
 ```
 
 Shared chrome (both variants): `onDismissed`, `interactionMode`, `disabled`,
-drag callbacks, `isFullScreen`, `backgroundColor`, scale / radius / opacity,
-`dragSensitivity`, `reverseDuration`, `hitTestBehavior`, and related fields.
+drag callbacks, `isFullScreen`, `backgroundColor`, scale / **Page Shape** /
+opacity, `dragSensitivity`, `reverseDuration`, `hitTestBehavior`, and related
+fields.
+
+### Page Shape / Shape Strategy
+
+Dismiss chrome clips content to a progress-resolved **Page Shape**
+(`ShapeBorder`). You pass a sealed **Shape Strategy** — not scalar
+`minRadius` / `maxRadius`:
+
+```dart
+// Shape Snap (library default): rest until a small Drag Progress threshold,
+// then jump to the full dragged outline for the rest of the gesture.
+DismissiblePage.constrained(
+  shape: DismissiblePageShape.snap(
+    rest: const RoundedRectangleBorder(),
+    dragged: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(30),
+    ),
+  ),
+  // ...
+);
+
+// Builder: full control over progress → Page Shape.
+DismissiblePage.free(
+  shape: DismissiblePageShape.builder((progress) {
+    return RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(30 * progress),
+    );
+  }),
+  // ...
+);
+```
+
+Chrome is **clip-only** — it does not paint `ShapeBorder.side`. Put strokes
+and decoration on your content (or route theme).
+
+#### Device corners / custom borders (outside the package)
+
+Build any `ShapeBorder` in your app (device plugins, design-system borders,
+`RoundedSuperellipseBorder`, …) and pass it into `.snap` or `.builder`. The
+package does **not** depend on `screen_corner_radius` or
+`MediaQuery.displayCornerRadii`:
+
+```dart
+// e.g. after ScreenCornerRadius.get() in main → shared Config
+final dragged = switch (defaultTargetPlatform) {
+  TargetPlatform.iOS => RoundedSuperellipseBorder(
+    borderRadius: config.screenBorderRadius,
+  ),
+  _ => RoundedRectangleBorder(
+    borderRadius: config.screenBorderRadius,
+  ),
+};
+
+DismissiblePage.constrained(
+  shape: DismissiblePageShape.snap(
+    rest: const RoundedRectangleBorder(),
+    dragged: dragged,
+  ),
+  // ...
+);
+```
+
+See the example app (`example/lib/config/config.dart`) for a full
+startup → Config → Shape Snap wiring on Android and iOS.
 
 Dismiss Engine internals (Axis Lock, Scroll Arbitration, presentation mapping)
 live behind `package:dismissible_page/dismissible_page_engine.dart` and are not

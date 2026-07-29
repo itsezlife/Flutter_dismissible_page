@@ -13,12 +13,8 @@ extension type const FreeMotion(Offset offset) {
   /// The dominant axis fraction wins: the larger of the horizontal and
   /// vertical distances relative to the corresponding bounds dimension.
   double progressIn(Size bounds) {
-    final horizontal = bounds.width == 0
-        ? 0.0
-        : offset.dx.abs() / bounds.width;
-    final vertical = bounds.height == 0
-        ? 0.0
-        : offset.dy.abs() / bounds.height;
+    final horizontal = bounds.width == 0 ? 0.0 : offset.dx.abs() / bounds.width;
+    final vertical = bounds.height == 0 ? 0.0 : offset.dy.abs() / bounds.height;
     return max(horizontal, vertical).clamp(0.0, 1.0);
   }
 

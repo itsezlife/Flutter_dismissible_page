@@ -79,23 +79,25 @@ void main() {
       );
     });
 
-    test('crosses origin into the other allowed side on a bidirectional axis',
-        () {
-      final lock = DismissDirections.vertical.resolveAxisLock(
-        delta: const Offset(0, 8),
-        textDirection: TextDirection.ltr,
-      );
+    test(
+      'crosses origin into the other allowed side on a bidirectional axis',
+      () {
+        final lock = DismissDirections.vertical.resolveAxisLock(
+          delta: const Offset(0, 8),
+          textDirection: TextDirection.ltr,
+        );
 
-      expect(
-        lock?.constrain(
+        expect(
+          lock?.constrain(
+            const Offset(0, -12),
+            currentExtent: 8,
+            directions: DismissDirections.vertical,
+          ),
           const Offset(0, -12),
-          currentExtent: 8,
-          directions: DismissDirections.vertical,
-        ),
-        const Offset(0, -12),
-      );
-      expect(lock?.sideFor(-4), DismissDirections.up);
-    });
+        );
+        expect(lock?.sideFor(-4), DismissDirections.up);
+      },
+    );
 
     test('clamps at origin when only a single side is permitted', () {
       final lock = DismissDirections.down.resolveAxisLock(
@@ -121,25 +123,27 @@ void main() {
       );
     });
 
-    test('dismiss-vs-reverse uses the threshold of the side matching extent',
-        () {
-      const thresholds = DismissThresholds(up: 0.2, down: 0.5);
-      final lock = DismissDirections.vertical.resolveAxisLock(
-        delta: const Offset(0, 8),
-        textDirection: TextDirection.ltr,
-      );
+    test(
+      'dismiss-vs-reverse uses the threshold of the side matching extent',
+      () {
+        const thresholds = DismissThresholds(up: 0.2, down: 0.5);
+        final lock = DismissDirections.vertical.resolveAxisLock(
+          delta: const Offset(0, 8),
+          textDirection: TextDirection.ltr,
+        );
 
-      // Still on the initially locked down side.
-      expect(
-        lock?.decide(progress: 0.4, extent: 10, thresholds: thresholds),
-        DismissDecision.reverse,
-      );
-      // After crossing origin, the up threshold (0.2) applies.
-      expect(
-        lock?.decide(progress: 0.4, extent: -10, thresholds: thresholds),
-        DismissDecision.dismiss,
-      );
-    });
+        // Still on the initially locked down side.
+        expect(
+          lock?.decide(progress: 0.4, extent: 10, thresholds: thresholds),
+          DismissDecision.reverse,
+        );
+        // After crossing origin, the up threshold (0.2) applies.
+        expect(
+          lock?.decide(progress: 0.4, extent: -10, thresholds: thresholds),
+          DismissDecision.dismiss,
+        );
+      },
+    );
 
     test('RTL reverse and origin crossing stay reading-relative', () {
       final lock = DismissDirections.horizontal.resolveAxisLock(

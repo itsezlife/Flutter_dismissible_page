@@ -1,24 +1,22 @@
 import 'dart:ui' show Offset, lerpDouble;
 
+import 'package:dismissible_page/src/engine/dismissible_page_shape.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/painting.dart';
 
 /// Visual bounds used to map drag progress into presentation details.
 @immutable
 final class DragPresentationConfig {
   /// Creates presentation bounds matching the package's historical defaults.
   const DragPresentationConfig({
-    this.minRadius = 7,
-    this.maxRadius = 30,
+    this.shape = kDefaultDismissiblePageShape,
     this.minScale = 0.85,
     this.startingOpacity = 1,
     this.minOpacity = 0,
   });
 
-  /// Border radius at progress 0.
-  final double minRadius;
-
-  /// Border radius at progress 1.
-  final double maxRadius;
+  /// Shape Strategy that resolves Page Shape from Drag Progress.
+  final DismissiblePageShape shape;
 
   /// Content scale at progress 1 (progress 0 is always 1.0).
   final double minScale;
@@ -42,7 +40,7 @@ final class DragPresentationConfig {
     return DragPresentation(
       progress: progress,
       offset: offset,
-      radius: lerpDouble(minRadius, maxRadius, progress)!,
+      shape: shape.resolve(progress),
       opacity: lerpDouble(
         startingOpacity,
         minOpacity,
@@ -56,16 +54,14 @@ final class DragPresentationConfig {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is DragPresentationConfig &&
-          minRadius == other.minRadius &&
-          maxRadius == other.maxRadius &&
+          shape == other.shape &&
           minScale == other.minScale &&
           startingOpacity == other.startingOpacity &&
           minOpacity == other.minOpacity;
 
   @override
   int get hashCode => Object.hash(
-    minRadius,
-    maxRadius,
+    shape,
     minScale,
     startingOpacity,
     minOpacity,
@@ -74,8 +70,7 @@ final class DragPresentationConfig {
   @override
   String toString() =>
       'DragPresentationConfig('
-      'minRadius: $minRadius, '
-      'maxRadius: $maxRadius, '
+      'shape: $shape, '
       'minScale: $minScale, '
       'startingOpacity: $startingOpacity, '
       'minOpacity: $minOpacity)';
@@ -88,7 +83,7 @@ final class DragPresentation {
   const DragPresentation({
     required this.progress,
     required this.offset,
-    required this.radius,
+    required this.shape,
     required this.opacity,
     required this.scale,
   });
@@ -99,8 +94,8 @@ final class DragPresentation {
   /// Gesture translation for this frame.
   final Offset offset;
 
-  /// Border radius for this frame.
-  final double radius;
+  /// Page Shape for this frame.
+  final ShapeBorder shape;
 
   /// Background opacity for this frame.
   final double opacity;
@@ -114,19 +109,19 @@ final class DragPresentation {
       other is DragPresentation &&
           progress == other.progress &&
           offset == other.offset &&
-          radius == other.radius &&
+          shape == other.shape &&
           opacity == other.opacity &&
           scale == other.scale;
 
   @override
-  int get hashCode => Object.hash(progress, offset, radius, opacity, scale);
+  int get hashCode => Object.hash(progress, offset, shape, opacity, scale);
 
   @override
   String toString() =>
       'DragPresentation('
       'progress: $progress, '
       'offset: $offset, '
-      'radius: $radius, '
+      'shape: $shape, '
       'opacity: $opacity, '
       'scale: $scale)';
 }

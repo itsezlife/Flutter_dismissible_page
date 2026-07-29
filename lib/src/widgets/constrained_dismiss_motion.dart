@@ -114,7 +114,7 @@ final class ConstrainedDismissMotion {
     );
     return DismissiblePageDragUpdateDetails(
       overallDragValue: min(progress, maxTransformValue),
-      radius: presentation.radius,
+      shape: presentation.shape,
       opacity: presentation.opacity,
       offset: presentation.offset,
       scale: presentation.scale,

@@ -127,6 +127,49 @@ class _PropertiesState extends State<Properties> {
                       ],
                     ),
                     const SizedBox(height: 20),
+                    const Title('Page Shape'),
+                    const SizedBox(height: 4),
+                    const _HintText(
+                      'Shape Strategy replaces min/max radius. Device Snap '
+                      'builds a platform ShapeBorder from screen_corner_radius '
+                      '(iOS squircle, Android rounded rect) outside the '
+                      'package and passes it into Shape Snap.',
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        AppChip(
+                          onSelected: () => setState(
+                            () =>
+                                pageModel.shapeKind = DemoShapeKind.deviceSnap,
+                          ),
+                          isSelected:
+                              pageModel.shapeKind == DemoShapeKind.deviceSnap,
+                          title: 'Device Snap',
+                        ),
+                        AppChip(
+                          onSelected: () => setState(
+                            () => pageModel.shapeKind =
+                                DemoShapeKind.packageDefault,
+                          ),
+                          isSelected:
+                              pageModel.shapeKind ==
+                              DemoShapeKind.packageDefault,
+                          title: 'Package default',
+                        ),
+                        AppChip(
+                          onSelected: () => setState(
+                            () => pageModel.shapeKind = DemoShapeKind.builder,
+                          ),
+                          isSelected:
+                              pageModel.shapeKind == DemoShapeKind.builder,
+                          title: 'Builder',
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
                     const Title('Motion'),
                     const SizedBox(height: 10),
                     Wrap(
@@ -437,8 +480,7 @@ class DismissibleDemo extends StatelessWidget {
         thresholds: pageModel.thresholds,
         interactionMode: interactionMode,
         isFullScreen: pageModel.isFullScreen,
-        minRadius: pageModel.minRadius,
-        maxRadius: pageModel.maxRadius,
+        shape: pageModel.shape,
         dragSensitivity: pageModel.dragSensitivity,
         maxTransformValue: maxTransformValue,
         disabled: pageModel.disabled,
@@ -456,8 +498,7 @@ class DismissibleDemo extends StatelessWidget {
         threshold: pageModel.freeThreshold,
         interactionMode: interactionMode,
         isFullScreen: pageModel.isFullScreen,
-        minRadius: pageModel.minRadius,
-        maxRadius: pageModel.maxRadius,
+        shape: pageModel.shape,
         dragSensitivity: pageModel.dragSensitivity,
         maxTransformValue: maxTransformValue,
         disabled: pageModel.disabled,

@@ -43,8 +43,7 @@ class DismissiblePageView extends StatefulWidget {
     this.dragStartBehavior = DragStartBehavior.down,
     this.dragSensitivity = .7,
     this.minScale = .85,
-    this.minRadius = 7,
-    this.maxRadius = 30,
+    this.shape = kDefaultDismissiblePageShape,
     this.maxTransformValue = .4,
     this.startingOpacity = 1,
     this.enableBackgroundOpacity = true,
@@ -106,11 +105,8 @@ class DismissiblePageView extends StatefulWidget {
   /// Content scale at full progress.
   final double minScale;
 
-  /// Border radius at rest.
-  final double minRadius;
-
-  /// Border radius at full progress.
-  final double maxRadius;
+  /// Shape Strategy that resolves Page Shape from Drag Progress.
+  final DismissiblePageShape shape;
 
   /// Maximum translation as a fraction of the active axis.
   final double maxTransformValue;
@@ -156,8 +152,7 @@ class _DismissiblePageViewState extends State<DismissiblePageView>
   Size get _screenSize => MediaQuery.sizeOf(context);
 
   DragPresentationConfig get _presentationConfig => DragPresentationConfig(
-    minRadius: widget.minRadius,
-    maxRadius: widget.maxRadius,
+    shape: widget.shape,
     minScale: widget.minScale,
     startingOpacity: widget.startingOpacity,
     minOpacity: widget.minOpacity,
@@ -168,7 +163,7 @@ class _DismissiblePageViewState extends State<DismissiblePageView>
     super.initState();
     _dragNotifier = ValueNotifier(
       DismissiblePageDragUpdateDetails(
-        radius: widget.minRadius,
+        shape: widget.shape.resolve(0),
         opacity: widget.startingOpacity,
       ),
     )..addListener(_notifyDragUpdate);
@@ -337,7 +332,7 @@ class _DismissiblePageViewState extends State<DismissiblePageView>
         presentation: DragPresentation(
           progress: details.overallDragValue,
           offset: details.offset,
-          radius: details.radius,
+          shape: details.shape,
           opacity: details.opacity,
           scale: details.scale,
         ),

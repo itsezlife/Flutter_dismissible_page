@@ -1,6 +1,5 @@
-import 'dart:ui' show Offset;
-
 import 'package:flutter/foundation.dart';
+import 'package:flutter/painting.dart';
 
 /// {@template dismissible_page_drag_update_details}
 /// Details outputted by the dismissible page onDragUpdate callback.
@@ -9,7 +8,7 @@ import 'package:flutter/foundation.dart';
 class DismissiblePageDragUpdateDetails {
   /// {@macro dismissible_page_drag_update_details}
   const DismissiblePageDragUpdateDetails({
-    required this.radius,
+    required this.shape,
     required this.opacity,
     this.offset = Offset.zero,
     this.overallDragValue = 0.0,
@@ -24,10 +23,10 @@ class DismissiblePageDragUpdateDetails {
   /// distances relative to the screen dimensions.
   final double overallDragValue;
 
-  /// The current border radius of the dismissible page.
+  /// The current Page Shape of the dismissible page.
   ///
-  /// Interpolated between the page min and max radius based on drag progress.
-  final double radius;
+  /// Resolved from the page Shape Strategy for the current Drag Progress.
+  final ShapeBorder shape;
 
   /// The current opacity of the background.
   ///
@@ -61,7 +60,7 @@ class DismissiblePageDragUpdateDetails {
   /// Converts this object to a map representation.
   Map<String, dynamic> toMap() => <String, dynamic>{
     'overallDragValue': overallDragValue,
-    'radius': radius,
+    'shape': shape,
     'opacity': opacity,
     'scale': scale,
     'offset': offset,
@@ -75,7 +74,7 @@ class DismissiblePageDragUpdateDetails {
   /// properties updated.
   DismissiblePageDragUpdateDetails copyWith({
     double? overallDragValue,
-    double? radius,
+    ShapeBorder? shape,
     double? opacity,
     double? scale,
     Offset? offset,
@@ -83,7 +82,7 @@ class DismissiblePageDragUpdateDetails {
   }) {
     return DismissiblePageDragUpdateDetails(
       overallDragValue: overallDragValue ?? this.overallDragValue,
-      radius: radius ?? this.radius,
+      shape: shape ?? this.shape,
       opacity: opacity ?? this.opacity,
       scale: scale ?? this.scale,
       offset: offset ?? this.offset,

@@ -49,8 +49,7 @@ sealed class DismissiblePage extends StatefulWidget {
     this.dragStartBehavior = DragStartBehavior.down,
     this.dragSensitivity = 0.7,
     this.minScale = .85,
-    this.minRadius = 7,
-    this.maxRadius = 30,
+    this.shape = kDefaultDismissiblePageShape,
     this.maxTransformValue = .4,
     this.startingOpacity = 1,
     this.enableBackgroundOpacity = true,
@@ -80,8 +79,7 @@ sealed class DismissiblePage extends StatefulWidget {
     DragStartBehavior dragStartBehavior,
     double dragSensitivity,
     double minScale,
-    double minRadius,
-    double maxRadius,
+    DismissiblePageShape shape,
     double maxTransformValue,
     double startingOpacity,
     bool enableBackgroundOpacity,
@@ -110,8 +108,7 @@ sealed class DismissiblePage extends StatefulWidget {
     DragStartBehavior dragStartBehavior,
     double dragSensitivity,
     double minScale,
-    double minRadius,
-    double maxRadius,
+    DismissiblePageShape shape,
     double maxTransformValue,
     double startingOpacity,
     bool enableBackgroundOpacity,
@@ -169,11 +166,8 @@ sealed class DismissiblePage extends StatefulWidget {
   /// Content scale at full drag progress.
   final double minScale;
 
-  /// Border radius at rest.
-  final double minRadius;
-
-  /// Border radius at full drag progress.
-  final double maxRadius;
+  /// Shape Strategy that resolves Page Shape from Drag Progress.
+  final DismissiblePageShape shape;
 
   /// Maximum translation as a fraction of the axis extent (0.0–1.0).
   final double maxTransformValue;

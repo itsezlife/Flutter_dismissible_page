@@ -1,4 +1,12 @@
 ## Unreleased
+- BREAKING: Replaces scalar `minRadius` / `maxRadius` and drag-update `radius`
+  with a sealed **Shape Strategy** (`DismissiblePageShape`) that resolves a
+  **Page Shape** (`ShapeBorder`) from Drag Progress. Library default is
+  **Shape Snap** (rest shape until progress exceeds a small threshold, then the
+  full dragged shape); use `.builder` for fine-grained control. Chrome clips
+  only — it does not paint `ShapeBorder.side`. Device corners and third-party
+  borders are built outside the package and passed in (see README / example
+  `Config` + `screen_corner_radius`).
 - Adds optional `confirmDismiss` on `DismissiblePage` (Constrained and Free).
   When a gesture crosses the dismiss threshold, the callback is awaited before
   completing dismiss: `true` invokes `onDismissed`, `false` reverse-settles to

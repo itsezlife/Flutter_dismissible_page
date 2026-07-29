@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:dismissible_page/dismissible_page.dart';
+import 'package:example/config/config.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
@@ -11,6 +12,18 @@ enum DemoMotionKind {
 
   /// [FreeDismissiblePage] — full-plane Free Motion (no directions).
   free,
+}
+
+/// Which Shape Strategy preset the Properties panel selects.
+enum DemoShapeKind {
+  /// Shape Snap using device corners from shared [Config].
+  deviceSnap,
+
+  /// Package default Shape Snap (`kDefaultDismissiblePageShape`).
+  packageDefault,
+
+  /// Builder that lerps rest → device dragged shape across Drag Progress.
+  builder,
 }
 
 class DismissiblePageModel {
@@ -43,14 +56,22 @@ class DismissiblePageModel {
   bool disabled = false;
   double startingOpacity = 1;
   double minScale = .85;
-  double minRadius = 7;
-  double maxRadius = 30;
   double maxTransformValue = .5;
   double dragSensitivity = .7;
   Color backgroundColor = Colors.black;
 
   /// Constrained vs Free page variant (orthogonal to Interaction Mode).
   DemoMotionKind motionKind = DemoMotionKind.constrained;
+
+  /// Shape Strategy preset (replaces scalar min/max radius knobs).
+  DemoShapeKind shapeKind = DemoShapeKind.deviceSnap;
+
+  /// Resolved Shape Strategy for the selected [shapeKind].
+  DismissiblePageShape get shape => switch (shapeKind) {
+    DemoShapeKind.deviceSnap => Config.current.pageShape,
+    DemoShapeKind.packageDefault => kDefaultDismissiblePageShape,
+    DemoShapeKind.builder => Config.current.builderPageShape,
+  };
 
   /// Allowed sides for Constrained Motion. Ignored when [motionKind] is free.
   DismissDirections directions = DismissDirections.vertical;

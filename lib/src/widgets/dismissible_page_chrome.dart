@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 /// Motion-agnostic chrome that renders already-computed drag presentation.
 ///
 /// Constrained and Free page States own gesture/motion; this shell only paints
-/// offset, scale, radius, opacity, and background configuration.
+/// offset, scale, Page Shape clip, opacity, and background configuration.
 class DismissiblePageChrome extends StatelessWidget {
   /// Creates chrome for a dismissible page frame.
   const DismissiblePageChrome({
@@ -46,8 +46,8 @@ class DismissiblePageChrome extends StatelessWidget {
       offset: presentation.offset,
       child: Transform.scale(
         scale: presentation.scale,
-        child: ClipRRect(
-          borderRadius: BorderRadius.all(Radius.circular(presentation.radius)),
+        child: _PageShapeClip(
+          shape: presentation.shape,
           child: child,
         ),
       ),
@@ -60,6 +60,43 @@ class DismissiblePageChrome extends StatelessWidget {
     return Padding(
       padding: contentPadding,
       child: content,
+    );
+  }
+}
+
+/// Clips [child] to [shape] without painting the shape's stroke.
+///
+/// Rebuilds the clipper only when the resolved Page Shape changes by value
+/// (cheap under Shape Snap, where most drag frames keep the same outline).
+class _PageShapeClip extends StatefulWidget {
+  const _PageShapeClip({
+    required this.shape,
+    required this.child,
+  });
+
+  final ShapeBorder shape;
+  final Widget child;
+
+  @override
+  State<_PageShapeClip> createState() => _PageShapeClipState();
+}
+
+class _PageShapeClipState extends State<_PageShapeClip> {
+  late CustomClipper<Path> _clipper = ShapeBorderClipper(shape: widget.shape);
+
+  @override
+  void didUpdateWidget(_PageShapeClip oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.shape != oldWidget.shape) {
+      _clipper = ShapeBorderClipper(shape: widget.shape);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipPath(
+      clipper: _clipper,
+      child: widget.child,
     );
   }
 }

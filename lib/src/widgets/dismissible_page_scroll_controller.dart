@@ -144,7 +144,7 @@ class DismissiblePageDragNotification extends Notification
   void debugFillDescription(List<String> description) {
     super.debugFillDescription(description);
     description.add(
-      'radius: ${details.radius}, opacity: ${details.opacity}, '
+      'shape: ${details.shape}, opacity: ${details.opacity}, '
       'offset: ${details.offset}, '
       'overallDragValue: ${details.overallDragValue}, scale: ${details.scale}',
     );
